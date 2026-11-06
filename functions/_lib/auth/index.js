@@ -27,10 +27,11 @@ export async function enabledProviders(db) {
 
 const twoDigits = () => String(10 + (crypto.getRandomValues(new Uint32Array(1))[0] % 90));
 
-export async function start(env, db, providerId, { invite = "", username = "" } = {}) {
+export async function start(env, db, providerId, { invite = "", username = "", device = "" } = {}) {
   if (!(await enabledProviders(db)).includes(providerId)) throw new HttpError(400, "provider_off");
   const now = Date.now();
   await db.prepare("DELETE FROM login_requests WHERE expires_at < ?").bind(nowIso(now)).run();
+  await db.prepare("DELETE FROM login_pushes WHERE at < ?").bind(nowIso(now - 86400_000)).run();
   const recent = await db.prepare("SELECT COUNT(*) AS n FROM login_requests WHERE created_at > ?")
     .bind(nowIso(now - 600_000)).first();
   if (recent.n >= MAX_STARTS_PER_10_MIN) throw new HttpError(429, "too_many_requests");
@@ -40,12 +41,40 @@ export async function start(env, db, providerId, { invite = "", username = "" } 
   await db.prepare("INSERT INTO login_requests (token_hash, rid, match, provider, created_at, expires_at, invite, chat_code) " +
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(req.token_hash, req.rid, req.match, providerId, nowIso(now),
     nowIso(now + LOGIN_MINUTES * 60_000), String(invite).slice(0, 64), req.chat_code).run();
-  // a known account can be reached directly; the answer is the same whether it exists or not
+  // a known account can be reached directly; for a typed @username the answer is the same whether it exists or not
+  let known = false, pushed = false;
   if (username && PROVIDERS[providerId].push) {
     await PROVIDERS[providerId].push(env, db, req, username, { reach, maxPerHour: MAX_PUSHES_PER_HOUR });
+  } else {
+    // a browser this person signed in on before: the numbers go to their Telegram by themselves
+    const subject = await rememberedSubject(db, providerId, device);
+    if (subject && PROVIDERS[providerId].pushTo) {
+      known = true;
+      pushed = (await PROVIDERS[providerId].pushTo(env, db, req, subject, { reach, maxPerHour: MAX_PUSHES_PER_HOUR })) === true;
+    }
   }
-  return { token, match: req.match, chat_code: req.chat_code, expires_in: LOGIN_MINUTES * 60,
+  return { token, match: req.match, chat_code: req.chat_code, expires_in: LOGIN_MINUTES * 60, known, pushed,
     ...PROVIDERS[providerId].instructions(env, token) };
+}
+
+async function rememberedSubject(db, providerId, device) {
+  if (!device) return "";
+  const row = await db.prepare("SELECT subject FROM devices WHERE id_hash = ? AND provider = ? ORDER BY last_at DESC LIMIT 1")
+    .bind(await sha256(device), providerId).first();
+  return row?.subject || "";
+}
+
+// "send it to my Telegram again": to whoever this sign-in already reached, or this browser's remembered account
+export async function resend(env, db, token, device = "") {
+  const req = await db.prepare("SELECT * FROM login_requests WHERE token_hash = ? AND expires_at > ? AND approved_at = ''")
+    .bind(await sha256(String(token || "")), nowIso()).first();
+  if (!req) throw new HttpError(400, "login_expired");
+  const subject = req.subject || await rememberedSubject(db, req.provider, device);
+  if (!subject || !PROVIDERS[req.provider].pushTo) throw new HttpError(400, "not_known_here");
+  const r = await PROVIDERS[req.provider].pushTo(env, db, req, subject, { reach, maxPerHour: MAX_PUSHES_PER_HOUR });
+  if (r === "limited") throw new HttpError(429, "too_many_pushes");
+  if (!r) throw new HttpError(400, "not_known_here");
+  return { ok: true };
 }
 
 // six digits no other open sign-in uses

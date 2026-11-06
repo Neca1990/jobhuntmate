@@ -668,3 +668,31 @@ test("admin messages go to the group where the owner sent /admin; others can't m
   await call("POST", "/api/requests", { cookie: friend.cookie, body: { kind: "job_cv", target: "g1", change: "shorter" } });
   assert.equal(String(sent.find((m) => m.url.endsWith("/sendMessage")).body.chat_id), String(OWNER));
 });
+
+test("on a remembered browser the numbers go to Telegram by themselves; 'send again' works, a few times an hour", async () => {
+  const first = await tappedSignIn(OWNER);
+  const done = await call("POST", "/api/auth/confirm", { body: { token: first.start.token, yes: true } });
+  const device = done.headers.getSetCookie()[1].match(/^device=([\w-]+)/)[1];
+  const onDevice = { cookie: `device=${device}` };
+  sent = [];
+  const start = await (await call("POST", "/api/auth/telegram/start", { body: {}, headers: onDevice })).json();
+  assert.equal(start.known, true);
+  assert.equal(start.pushed, true);
+  const msg = sent.find((m) => m.url.endsWith("/sendMessage"));
+  assert.equal(msg.body.chat_id, OWNER);
+  assert.ok(buttons(msg).some((d) => d.endsWith(`:${start.match}`)));
+  // send again: works twice more this hour, then it's limited
+  assert.equal((await call("POST", "/api/auth/resend", { body: { token: start.token }, headers: onDevice })).status, 200);
+  assert.equal((await call("POST", "/api/auth/resend", { body: { token: start.token }, headers: onDevice })).status, 200);
+  const limited = await call("POST", "/api/auth/resend", { body: { token: start.token }, headers: onDevice });
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json()).error, "too_many_pushes");
+  // tapping the number still signs in straight away on this browser
+  await tap(OWNER, buttons(sent.filter((m) => m.url.endsWith("/sendMessage")).at(-1)).find((d) => d.endsWith(`:${start.match}`)));
+  assert.equal((await (await call("POST", "/api/auth/poll", { body: { token: start.token }, headers: onDevice })).json()).ok, true);
+  // a browser nobody signed in on: nothing is sent, and "send again" has nowhere to go
+  sent = [];
+  const fresh = await (await call("POST", "/api/auth/telegram/start", { body: {} })).json();
+  assert.deepEqual([fresh.known, fresh.pushed, sent.length], [false, false, 0]);
+  assert.equal((await call("POST", "/api/auth/resend", { body: { token: fresh.token } })).status, 400);
+});

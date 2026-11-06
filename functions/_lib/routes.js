@@ -54,7 +54,12 @@ on("GET", "/api/auth/providers", async ({ db }) => json({ providers: await auth.
 
 on("POST", "/api/auth/:provider/start", async ({ request, env, db, params }) => {
   const body = await readBody(request);
-  return json(await auth.start(env, db, params.provider, { invite: body.invite || "", username: body.username || "" }));
+  return json(await auth.start(env, db, params.provider, { invite: body.invite || "", username: body.username || "", device: deviceId(request) }));
+});
+
+on("POST", "/api/auth/resend", async ({ request, env, db }) => {
+  const body = await readBody(request);
+  return json(await auth.resend(env, db, body.token, deviceId(request)));
 });
 
 // a finished sign-in sets two cookies: the session, and the browser's own id (see devices)

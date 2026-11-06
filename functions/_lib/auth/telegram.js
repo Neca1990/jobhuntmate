@@ -81,18 +81,28 @@ export async function onText(env, db, message, reach) {
 }
 
 // "@username" typed on the site by someone who already has an account
-export async function push(env, db, req, username, { reach, maxPerHour }) {
+export async function push(env, db, req, username, opts) {
   const wanted = `@${String(username).replace(/^@/, "").trim()}`.toLowerCase();
-  const who = await db.prepare("SELECT i.subject, u.settings FROM identities i JOIN users u ON u.id = i.user_id " +
+  const who = await db.prepare("SELECT i.subject FROM identities i JOIN users u ON u.id = i.user_id " +
     "WHERE i.provider = 'telegram' AND lower(i.label) = ? AND u.active = 1").bind(wanted).first();
+  return who ? pushTo(env, db, req, who.subject, opts) : false;
+}
+
+// the numbers sent straight to a known account's chat (remembered browser, @username, "send it again");
+// "limited" when that account already got its share this hour
+export async function pushTo(env, db, req, subject, { reach, maxPerHour }) {
+  const who = await db.prepare("SELECT i.label, u.settings FROM identities i JOIN users u ON u.id = i.user_id " +
+    "WHERE i.provider = 'telegram' AND i.subject = ? AND u.active = 1").bind(String(subject)).first();
   const chat = who && JSON.parse(who.settings || "{}").channels?.telegram?.chat_id;
   if (!chat) return false;
-  const recent = await db.prepare("SELECT COUNT(*) AS n FROM login_requests WHERE subject = ? AND created_at > ?")
-    .bind(String(who.subject), nowIso(Date.now() - 3600_000)).first();
-  if (recent.n >= maxPerHour) return false; // nobody gets to flood someone's chat with sign-in prompts
-  const offer = await reach(db, { rid: req.rid }, who.subject, wanted, { chat_id: chat });
-  if (offer) await deliver(env, chat, offer);
-  return Boolean(offer);
+  const recent = await db.prepare("SELECT COUNT(*) AS n FROM login_pushes WHERE provider = 'telegram' AND subject = ? AND at > ?")
+    .bind(String(subject), nowIso(Date.now() - 3600_000)).first();
+  if (recent.n >= maxPerHour) return "limited"; // nobody gets to flood someone's chat with sign-in prompts
+  const offer = await reach(db, { rid: req.rid }, subject, who.label, { chat_id: chat });
+  if (!offer) return false;
+  await db.prepare("INSERT INTO login_pushes (provider, subject, at) VALUES ('telegram', ?, ?)").bind(String(subject), nowIso()).run();
+  await deliver(env, chat, offer);
+  return true;
 }
 
 // a tapped number: tell the person what happened and take the buttons away

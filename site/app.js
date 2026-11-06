@@ -78,7 +78,11 @@ $("#start").addEventListener("click", async () => {
     $("#match").textContent = r.match;
     $("#chat-code").textContent = r.chat_code ? `${r.chat_code.slice(0, 3)} ${r.chat_code.slice(3)}` : "";
     $("#chat-code-copy").onclick = (e) => navigator.clipboard.writeText(r.chat_code).then(() => { e.target.textContent = "✅"; });
-    $("#where").textContent = username ? t("where_pushed") : t("where_link");
+    $("#where").textContent = r.pushed ? t("where_device") : username ? t("where_pushed") : t("where_link");
+    // a remembered browser: the numbers are already in Telegram; this sends them again if needed
+    $("#resend").classList.toggle("hidden", !r.known);
+    $("#resend").textContent = t("resend");
+    $("#bot-link").classList.toggle("ghost", Boolean(r.known));
     $("#bot-link").href = r.link;
     $("#bot-link").dataset.app = r.app_link;
     $("#code").value = "";
@@ -133,6 +137,16 @@ $("#confirm-no").addEventListener("click", () => answerWho(false));
 $("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#verify").click(); });
 $("#username").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#start").click(); });
 $("#restart").addEventListener("click", () => showLogin("start"));
+$("#resend").addEventListener("click", async (e) => {
+  const b = e.currentTarget;
+  b.disabled = true;
+  try {
+    await api("POST", "/api/auth/resend", { token: state.login.token });
+    b.textContent = t("resent");
+    $("#where").textContent = t("where_device");
+  } catch (err) { loginError(err.code); }
+  setTimeout(() => { b.disabled = false; b.textContent = t("resend"); }, 5000);
+});
 // Phones: the t.me link itself opens the app when it is installed (and the web page when not).
 // Computers: try the Telegram app first; if nothing takes over the page, open the web page in a new tab.
 const phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
