@@ -78,7 +78,7 @@ th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border);
 th { color: var(--muted); font-weight: 600; white-space: nowrap; }
 td a { color: var(--accent); }
 td.notes { min-width: 200px; font-size: .84rem; color: var(--muted); white-space: pre-line; }
-select.status { font-size: .85rem; padding: 3px 8px; font-weight: 600; }
+select.status { font-size: .85rem; padding: 3px 30px 3px 10px; font-weight: 600; }
 
 /* onboarding */
 .overlay { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
