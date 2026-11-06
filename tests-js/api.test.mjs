@@ -696,3 +696,15 @@ test("on a remembered browser the numbers go to Telegram by themselves; 'send ag
   assert.deepEqual([fresh.known, fresh.pushed, sent.length], [false, false, 0]);
   assert.equal((await call("POST", "/api/auth/resend", { body: { token: fresh.token } })).status, 400);
 });
+
+test("the owner's tools can put a file on an account (engine key only)", async () => {
+  const { cookie } = await signIn(OWNER);
+  const me = await (await call("GET", "/api/me", { cookie })).json();
+  const data = Buffer.from("%PDF old cv").toString("base64");
+  assert.equal((await call("PUT", `/api/engine/users/${me.id}/files`, { body: { name: "cv.pdf", data } })).status, 403);
+  const r = await (await call("PUT", `/api/engine/users/${me.id}/files`, { headers: { authorization: "Bearer engine-key" },
+    body: { name: "cv.pdf", data, kind: "cv" } })).json();
+  assert.equal(r.made_by, "tailored");
+  const files = (await (await call("GET", "/api/files", { cookie })).json()).files;
+  assert.deepEqual(files.map((f) => f.id), [r.id]);
+});
