@@ -105,6 +105,7 @@ $("#verify").addEventListener("click", async () => {
   }
 });
 $("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#verify").click(); });
+$("#username").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#start").click(); });
 $("#restart").addEventListener("click", () => showLogin("start"));
 // Phones: the t.me link itself opens the app when it is installed (and the web page when not).
 // Computers: try the Telegram app first; if nothing takes over the page, open the web page in a new tab.
