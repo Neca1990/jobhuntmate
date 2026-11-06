@@ -308,3 +308,39 @@ test("agencies: the shared catalog, each user's own status, and a request the ow
   assert.equal(files.find((f) => f.id === r.mine.a1.cv_file_id).made_by, "tailored");
   assert.equal((await (await call("GET", "/api/engine/requests", { headers: engine })).json()).requests.length, 0);
 });
+
+test("a tailored CV and cover letter for a job posting: request, owner's side, ready on the site and on Telegram", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  await call("PUT", `/api/engine/users/${users[0].id}/applications`, { headers: engine,
+    body: [{ id: "job1", status: "approved", title: "QA Engineer", company: "Acme", refs: { telegram: { chat_id: OWNER, message_id: 77 } } }] });
+  await call("PUT", "/api/engine/postings/job1", { headers: engine, body: { id: "job1", description_text: "We test things." } });
+  assert.equal((await call("POST", "/api/requests", { cookie, body: { kind: "job_cv", target: "nope" } })).status, 404);
+  await call("POST", "/api/requests", { cookie, body: { kind: "job_cv", target: "job1", note: "stress API testing", letter: true } });
+  let app = (await (await call("GET", "/api/applications", { cookie })).json()).applications[0];
+  assert.equal(app.cv_state, "waiting");
+  assert.equal(app.status, "approved");
+  const { requests } = await (await call("GET", "/api/engine/requests", { headers: engine })).json();
+  assert.equal(requests[0].kind, "job_cv");
+  assert.equal(requests[0].posting.description_text, "We test things.");
+  assert.equal(requests[0].want_letter, true);
+  sent = [];
+  await call("PUT", `/api/engine/requests/${requests[0].id}`, { headers: engine, body: {
+    file: { name: "cv.pdf", data: Buffer.from("%PDF cv").toString("base64") },
+    letter: { name: "letter.pdf", data: Buffer.from("%PDF letter").toString("base64") } } });
+  app = (await (await call("GET", "/api/applications", { cookie })).json()).applications[0];
+  assert.equal(app.cv_state, "ready");
+  assert.equal(app.status, "ready");
+  assert.ok(app.cv_file_id && app.letter_file_id);
+  assert.equal(sent.find((m) => m.url.endsWith("/editMessageReplyMarkup")).body.reply_markup.inline_keyboard[0][0].text, "📄 CV ready");
+  assert.match(sent.find((m) => m.url.endsWith("/sendMessage")).body.text, /Ready: your CV and cover letter for QA Engineer – Acme/);
+  // asking for changes keeps the first version in the history
+  await call("POST", "/api/requests", { cookie, body: { kind: "job_cv", target: "job1", change: "shorter summary" } });
+  const again = (await (await call("GET", "/api/engine/requests", { headers: engine })).json()).requests[0];
+  assert.match(again.note, /^CHANGE: shorter summary/);
+  await call("PUT", `/api/engine/requests/${again.id}`, { headers: engine, body: { file: { name: "cv2.pdf", data: Buffer.from("%PDF v2").toString("base64") } } });
+  app = (await (await call("GET", "/api/applications", { cookie })).json()).applications[0];
+  assert.equal(app.history.length, 1);
+  assert.notEqual(app.history[0].cv_file_id, app.cv_file_id);
+});

@@ -613,19 +613,86 @@ function drawApplications(filter = state.appsFilter || "") {
       } catch (err) { alertRow(err); }
     } }),
   ]);
-  const head = ["a.date", "a.company", "a.title", "a.source", "a.score", "a.status", "a.deadline", "a.notes"].map((k) => el("th", { text: t(k) }));
+  const head = ["a.date", "a.company", "a.title", "a.source", "a.score", "a.status", "a.cv", "a.deadline", "a.notes"].map((k) => el("th", { text: t(k) }));
   root.replaceChildren(el("div", { class: "card" }, [
     el("div", { class: "row" }, [el("h2", { text: t("tab.applications") }),
       selectEl([["", t("a.all")], ...STATUSES.map((s) => [s, t(`st.${s}`)])], filter, (v) => drawApplications(v))]),
     el("p", { class: "error", id: "apps-error" }),
     rows.length ? el("div", { class: "table-wrap" }, [el("table", {}, [el("thead", {}, [el("tr", {}, head)]),
-      el("tbody", {}, rows.map((a) => el("tr", {}, [
+      el("tbody", {}, rows.flatMap((a) => [el("tr", {}, [
         el("td", { text: (a.created_at || "").slice(0, 10) }), el("td", { text: a.company || "" }),
         el("td", {}, [el("a", { href: a.url, target: "_blank", rel: "noopener noreferrer", text: a.title || "—" })]),
         el("td", { text: a.source || "" }), el("td", { text: a.score ? `${a.score}/10` : "" }),
-        el("td", {}, [statusSelect(a)]), el("td", { text: a.deadline || "" }), noteCell(a),
-      ])))])]) : el("p", { class: "muted", text: t("a.empty") }),
+        el("td", {}, [statusSelect(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { text: a.deadline || "" }), noteCell(a),
+      ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 9 }, [cvDetail(a)])])].filter(Boolean)))])])
+      : el("p", { class: "muted", text: t("a.empty") }),
   ]));
+}
+// ---- a tailored CV (and cover letter) for one posting ----
+const NO_CV = new Set(["pending", "skipped", "rejected", "no_reply"]);
+const toggleOpen = (a) => { state.appOpen = state.appOpen === a.id ? null : a.id; drawApplications(); };
+function cvCell(a) {
+  if (a.cv_state === "waiting") return [el("span", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), ` ${t("a.cv_waiting")}`])];
+  if (a.cv_state === "ready") {
+    return [el("button", { class: "ghost small", text: t("a.view_cv"), onclick: () => previewFile(a.cv_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
+      a.letter_file_id && el("button", { class: "ghost small", text: t("a.view_letter"), onclick: () => previewFile(a.letter_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
+      el("button", { class: "ghost small", text: state.appOpen === a.id ? "▴" : "⋯", title: t("a.more"), onclick: () => toggleOpen(a) })].filter(Boolean);
+  }
+  if (NO_CV.has(a.status)) return [];
+  return [el("button", { class: "small", text: t("a.make_cv"), onclick: () => toggleOpen(a) })];
+}
+async function askJobChange(a, text) {
+  try {
+    await api("POST", "/api/requests", { kind: "job_cv", target: a.id, change: text });
+    Object.assign(a, { cv_state: "waiting", change: text });
+    state.appOpen = null;
+    drawApplications();
+  } catch (e) { alertRow(e); }
+}
+function cvDetail(a) {
+  if (a.cv_state === "ready") {
+    const text = el("textarea", { rows: 3, maxlength: 2000, placeholder: t("ag.change_ph") });
+    const count = el("span", { class: "muted counter" });
+    countChars(text, count);
+    return el("div", { class: "app-detail" }, [
+      el("div", { class: "actions" }, [
+        el("button", { class: "ghost small", text: t("a.download_cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
+        a.letter_file_id && el("button", { class: "ghost small", text: t("a.download_letter"), onclick: () => downloadFile(a.letter_file_id).catch(() => {}) }),
+        el("a", { class: "button ghost small", href: a.company_url || a.url, target: "_blank", rel: "noopener noreferrer", text: t("a.apply_link") }),
+      ].filter(Boolean)),
+      el("label", {}, [t("ag.change_label"), text]),
+      el("div", { class: "row", style: "justify-content:flex-start" }, [
+        el("button", { class: "small", text: t("ag.send_change"), onclick: () => { if (text.value.trim()) askJobChange(a, text.value.trim()); } }), count]),
+      (a.history || []).length && historyBlock(a),
+    ].filter(Boolean));
+  }
+  const note = el("textarea", { rows: 3, maxlength: 2000, placeholder: t("a.cv_note_ph") });
+  note.value = a.note || "";
+  const files = state.files || [];
+  const pick = selectEl([["", t("a.cv_pick")], ...files.map((f) => [f.id, f.name])], a.file_id || files[0]?.id || "", () => {});
+  const letter = el("input", { type: "checkbox", checked: a.cover_letter === "required" || a.cover_letter === "optional" || Boolean(a.want_letter) });
+  const upload = el("input", { type: "file", accept: ".pdf,.docx,.txt", class: "hidden", onchange: async (e) => {
+    try { const f = await uploadFile(e.target.files[0]); await loadFiles(); a.file_id = f.id; drawApplications(); } catch (err) { alertRow(err); }
+  } });
+  if (!state.files) loadFiles().then(() => drawApplications()).catch(() => {});
+  return el("div", { class: "app-detail" }, [
+    el("label", {}, [t("a.cv_note"), note]),
+    el("label", {}, [t("ag.cv_from"), el("div", { class: "row", style: "justify-content:flex-start" }, [pick, upload,
+      el("button", { class: "ghost small", type: "button", text: t("f.add"), onclick: () => upload.click() })])]),
+    el("label", { class: "inline" }, [letter, t("a.with_letter")]),
+    a.cover_letter && el("p", { class: "muted", text: t("a.letter_hint", { what: t(`a.letter.${a.cover_letter}`) }) }),
+    el("div", { class: "actions" }, [
+      el("button", { text: t("a.request_cv"), onclick: async () => {
+        if (!pick.value) { alertRow({ code: "need_cv" }); return; }
+        try {
+          await api("POST", "/api/requests", { kind: "job_cv", target: a.id, note: note.value, file_id: pick.value, letter: letter.checked });
+          Object.assign(a, { cv_state: "waiting" });
+          state.appOpen = null;
+          drawApplications();
+        } catch (e) { alertRow(e); }
+      } }),
+      el("button", { class: "ghost", text: t("cancel"), onclick: () => toggleOpen(a) })]),
+  ].filter(Boolean));
 }
 function alertRow(e) {
   if (e.status === 401) return showLogin("start");

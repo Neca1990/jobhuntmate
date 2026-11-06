@@ -162,3 +162,10 @@ a.button:hover { text-decoration: none; }
 /* the preview scrolls on its own; the page behind it stays put */
 .preview-pages { overscroll-behavior: contain; }
 body:has(dialog[open]) { overflow: hidden; }
+tr.detail > td { background: var(--chip); }
+.app-detail { padding: 6px 4px; max-width: 760px; }
+.app-detail textarea { width: 100%; }
+td.files .button, td.files button { margin: 0 4px 4px 0; }
+#tab-applications .card { max-width: 1240px; }
+#tab-applications td:first-child, td.files { white-space: nowrap; }
+td.files button { padding: 3px 8px; }

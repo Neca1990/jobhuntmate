@@ -1,5 +1,8 @@
 // Files on the account (CVs), recruitment agencies (a shared catalog plus each user's dealings with them) and
 // requests for a tailored CV and email, which the owner (or later the Claude API) fulfils.
+import brand from "./brand.gen.js";
+import { relabel } from "./cards.js";
+import { sendMessage } from "./telegram_api.js";
 import { HttpError, json, nowIso, parse, readBody } from "./util.js";
 
 const MAX_FILE = 1_500_000; // bytes; the database keeps up to ~2 MB in one row
@@ -45,6 +48,21 @@ export async function saveMine(db, userId, agencyId, data) {
   await db.prepare("INSERT INTO user_agencies (user_id, agency_id, data, updated_at) VALUES (?, ?, ?, ?) " +
     "ON CONFLICT(user_id, agency_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at")
     .bind(userId, agencyId, JSON.stringify(data), nowIso()).run();
+}
+
+// the bot tells the person their CV is ready, and a job card on Telegram shows it too
+async function tellUser(env, db, req, data) {
+  if (!env.TELEGRAM_BOT_TOKEN) return;
+  const settings = parse((await db.prepare("SELECT settings FROM users WHERE id = ?").bind(req.user_id).first())?.settings, {});
+  const chat = settings.channels?.telegram?.chat_id;
+  const sr = settings.language === "sr";
+  if (req.kind === "job_cv") await relabel(env, data, settings.language);
+  if (!chat) return;
+  const what = req.kind === "job_cv" ? `${data.title || ""} – ${data.company || ""}` : data.name || "";
+  const text = (sr ? `📄 Spremno: CV${data.letter_file_id ? " i propratno pismo" : ""}${data.mail ? " i mejl" : ""} za ${what}.`
+    : `📄 Ready: your CV${data.letter_file_id ? " and cover letter" : ""}${data.mail ? " and email" : ""} for ${what}.`) +
+    `\n${brand.site_url}`;
+  await sendMessage(env, chat, text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c])).catch(() => {});
 }
 
 export function routes(on, { requireUser, requireEngine }) {
@@ -113,40 +131,67 @@ export function routes(on, { requireUser, requireEngine }) {
   });
 
   // ---------- requests for a tailored CV and email ----------
+  // A request is about an agency (a CV and email for it) or a job posting (a CV, and a cover letter if wanted).
+  // Their data lives with the agency (user_agencies) or the application (applications); both keep the same fields:
+  // state (waiting/ready), note, change, changes, file_id (the CV to start from), results, history.
+  const TARGETS = {
+    agency_mail: {
+      load: (db, userId, id) => mine(db, userId, id),
+      save: (db, userId, id, data) => saveMine(db, userId, id, data),
+    },
+    job_cv: {
+      load: async (db, userId, id) => {
+        const row = await db.prepare("SELECT data FROM applications WHERE user_id = ? AND id = ?").bind(userId, id).first();
+        return row ? parse(row.data, {}) : null;
+      },
+      save: (db, userId, id, data) => db.prepare("UPDATE applications SET data = ?, updated_at = ? WHERE user_id = ? AND id = ?")
+        .bind(JSON.stringify(data), nowIso(), userId, id).run(),
+    },
+  };
+  // agencies keep their stage in "status"; applications keep it in "cv_state" (their status is the application's)
+  const stateKey = (kind) => (kind === "job_cv" ? "cv_state" : "status");
+
   on("POST", "/api/requests", async ({ request, db }) => {
     const user = await requireUser(request, db);
     const body = await readBody(request, 16 * 1024);
-    if (body.kind !== "agency_mail") throw new HttpError(400, "bad_kind");
-    const data = (await mine(db, user.id, body.target)) || {};
+    const target = TARGETS[body.kind];
+    if (!target) throw new HttpError(400, "bad_kind");
+    const data = (await target.load(db, user.id, String(body.target))) ?? (body.kind === "agency_mail" ? {} : null);
+    if (!data) throw new HttpError(404, "not_found");
+    const change = String(body.change || "").trim().slice(0, 2000); // "make it again, but…" after seeing a version
     const id = crypto.randomUUID();
     await db.batch([
       db.prepare("UPDATE requests SET status = 'cancelled' WHERE user_id = ? AND target = ? AND status = 'waiting'").bind(user.id, body.target),
       db.prepare("INSERT INTO requests (id, user_id, kind, target, note, file_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .bind(id, user.id, body.kind, String(body.target), String(body.change ? `CHANGE: ${body.change}` : body.note || "").slice(0, 2000),
-          String(body.file_id || ""), nowIso()),
+        .bind(id, user.id, body.kind, String(body.target), (change ? `CHANGE: ${change}` : String(body.note || "")).slice(0, 2000),
+          String(body.file_id || data.file_id || ""), nowIso()),
     ]);
-    const change = String(body.change || "").trim().slice(0, 2000); // "make it again, but…" after seeing a version
-    await saveMine(db, user.id, body.target, { ...data, status: "waiting", requested_at: nowIso(),
-      note: change ? data.note || "" : String(body.note || data.note || "").slice(0, 2000),
-      file_id: body.file_id || data.file_id || "", change: change || "",
-      changes: change ? [...(data.changes || []), { at: nowIso(), text: change }] : data.changes || [] });
+    const next = { ...data, [stateKey(body.kind)]: "waiting", requested_at: nowIso(),
+      note: change ? data.note || "" : String(body.note ?? data.note ?? "").slice(0, 2000),
+      file_id: body.file_id || data.file_id || "", change,
+      changes: change ? [...(data.changes || []), { at: nowIso(), text: change }] : data.changes || [] };
+    if (body.kind === "job_cv") next.want_letter = change ? Boolean(data.want_letter) : Boolean(body.letter);
+    await target.save(db, user.id, String(body.target), next);
     return json({ id });
   });
 
-  // the owner's side (tools/requests.py, with the engine key): what is waiting, and the finished CV and email
+  // the owner's side (tools/requests.py, with the engine key): what is waiting, and the finished files and email
   on("GET", "/api/engine/requests", async ({ request, env, db }) => {
     requireEngine(request, env);
     const rows = (await db.prepare("SELECT r.*, u.settings FROM requests r JOIN users u ON u.id = r.user_id " +
       "WHERE r.status = 'waiting' ORDER BY r.created_at").all()).results;
     const out = [];
     for (const r of rows) {
-      const agency = r.target.startsWith("own:") ? await mine(db, r.user_id, r.target)
+      const current = await TARGETS[r.kind]?.load(db, r.user_id, r.target);
+      const agency = r.kind !== "agency_mail" ? null : r.target.startsWith("own:") ? current
         : parse((await db.prepare("SELECT data FROM agencies WHERE id = ?").bind(r.target).first())?.data, {});
+      const posting = r.kind === "job_cv" ? parse((await db.prepare("SELECT data FROM postings WHERE id = ?").bind(r.target).first())?.data, null) : null;
       const file = r.file_id && await db.prepare("SELECT id, name, size FROM files WHERE id = ? AND user_id = ?").bind(r.file_id, r.user_id).first();
       const s = parse(r.settings, {});
-      const current = r.target.startsWith("own:") ? agency : await mine(db, r.user_id, r.target);
       out.push({ id: r.id, kind: r.kind, target: r.target, note: r.note, created_at: r.created_at, agency, file: file || null,
-        previous: current?.mail || current?.cv_file_id ? { mail: current.mail || null, cv_file_id: current.cv_file_id || "" } : null,
+        application: r.kind === "job_cv" ? current : null, posting, want_letter: Boolean(current?.want_letter),
+        previous: current?.mail || current?.cv_file_id ? { mail: current.mail || null, cv_file_id: current.cv_file_id || "",
+          letter_file_id: current.letter_file_id || "" } : null,
         user_note: current?.note || "",
         user: { id: r.user_id, name: s.name || "", language: s.language || "en", country: s.country || "" } });
     }
@@ -158,21 +203,31 @@ export function routes(on, { requireUser, requireEngine }) {
   });
   on("PUT", "/api/engine/requests/:id", async ({ request, env, db, params }) => {
     requireEngine(request, env);
-    const body = await readBody(request, 2_400_000);
+    const body = await readBody(request, 4_800_000);
     const req = await db.prepare("SELECT * FROM requests WHERE id = ? AND status = 'waiting'").bind(params.id).first();
     if (!req) throw new HttpError(404, "not_found");
-    const data = (await mine(db, req.user_id, req.target)) || {};
-    if (body.file) {
-      const f = await saveFile(db, req.user_id, { ...body.file, kind: "cv", madeBy: "tailored" });
-      data.cv_file_id = f.id;
+    const target = TARGETS[req.kind];
+    const data = (await target.load(db, req.user_id, req.target)) || {};
+    if (data.cv_file_id || data.mail) {  // the version being replaced stays in the history
+      data.history = [...(data.history || []), { at: nowIso(), mail: data.mail || null, cv_file_id: data.cv_file_id || "",
+        letter_file_id: data.letter_file_id || "", note: data.note || "", changes: data.changes || [], replaced: true }].slice(-10);
     }
+    if (body.file) data.cv_file_id = (await saveFile(db, req.user_id, { ...body.file, kind: "cv", madeBy: "tailored" })).id;
+    if (body.letter) data.letter_file_id = (await saveFile(db, req.user_id, { ...body.letter, kind: "letter", madeBy: "tailored" })).id;
     if (body.mail) data.mail = { to: String(body.mail.to || ""), subject: String(body.mail.subject || ""), body: String(body.mail.body || "") };
-    data.status = "ready";
+    data[stateKey(req.kind)] = "ready";
+    if (req.kind === "job_cv" && ["pending", "approved"].includes(data.status)) data.status = "ready";
     data.ready_at = nowIso();
     data.change = "";
-    await saveMine(db, req.user_id, req.target, data);
+    await target.save(db, req.user_id, req.target, data);
     await db.prepare("UPDATE requests SET status = 'done', done_at = ? WHERE id = ?").bind(nowIso(), params.id).run();
+    await tellUser(env, db, req, data);
     return json({ ok: true });
+  });
+  on("GET", "/api/engine/postings/:id", async ({ request, env, db, params }) => {
+    requireEngine(request, env);
+    const row = await db.prepare("SELECT data FROM postings WHERE id = ?").bind(params.id).first();
+    return json(row ? parse(row.data, null) : null);
   });
   // the shared catalog is put here by the owner's tools, never kept in the repository
   on("PUT", "/api/engine/agencies", async ({ request, env, db }) => {
