@@ -6,7 +6,7 @@ const LIBS = {
   docx: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js",
 };
 
-function loadScript(src) {
+export function loadScript(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) return resolve();
     const s = document.createElement("script");
@@ -17,12 +17,41 @@ function loadScript(src) {
   });
 }
 
+// pdf.js with its worker started from a same-origin copy (a worker straight from another site isn't allowed)
+async function usePdfJs() {
+  await loadScript(LIBS.pdf);
+  const opts = window.pdfjsLib.GlobalWorkerOptions;
+  if (!opts.workerPort) {
+    const code = await (await fetch(LIBS.pdfWorker)).text();
+    opts.workerPort = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+  }
+}
+
+// draws every page of a PDF into canvases (pdf.js): works in every browser and on phones, unlike the built-in viewer
+export async function renderPdf(container, data) {
+  await usePdfJs();
+  const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+  container.replaceChildren();
+  const width = Math.min(container.clientWidth - 24, 900);
+  for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+    const page = await pdf.getPage(i);
+    const base = page.getViewport({ scale: 1 });
+    const scale = (width / base.width) * (window.devicePixelRatio || 1);
+    const view = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = view.width;
+    canvas.height = view.height;
+    canvas.style.width = `${width}px`;
+    container.append(canvas);
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport: view }).promise;
+  }
+}
+
 export async function fileText(file) {
   const name = file.name.toLowerCase();
   if (name.endsWith(".txt")) return file.text();
   if (name.endsWith(".pdf")) {
-    await loadScript(LIBS.pdf);
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = LIBS.pdfWorker;
+    await usePdfJs();
     const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     const pages = [];
     for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {

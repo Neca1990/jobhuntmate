@@ -680,22 +680,35 @@ async function downloadFile(id) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 // a PDF opens on the page in the browser's viewer; other files (Word) are downloaded
-let previewUrl = "", previewFeedback = null;
+let previewId = "", previewFeedback = null;
 async function previewFile(id, name = "", onFeedback = null) {
+  previewId = id;
   previewFeedback = onFeedback;
   $("#preview-feedback").classList.toggle("hidden", !onFeedback);
   $("#preview-text").value = "";
+  countChars($("#preview-text"), $("#preview-count"));
   const r = await fetch(`/api/files/${encodeURIComponent(id)}`, { credentials: "same-origin" });
   if (!r.ok) return;
   const blob = await r.blob();
   if (!blob.type.includes("pdf")) return downloadFile(id);
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
   $("#preview-title").textContent = name || (r.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "CV";
-  $("#preview-frame").src = previewUrl;
-  $("#preview-open").href = previewUrl;
+  const pages = $("#preview-pages");
+  pages.replaceChildren(el("div", { class: "spinner" }));
   $("#preview").showModal();
+  try {
+    const { renderPdf } = await import("./cvscan.js?v=__V__");
+    await renderPdf(pages, new Uint8Array(await blob.arrayBuffer()));
+  } catch {
+    pages.replaceChildren(el("p", { class: "error", text: t("f.preview_failed") }));
+  }
 }
+// "123 / 2000" under a text box with a limit
+function countChars(box, out) {
+  const paint = () => { out.textContent = `${box.value.length} / ${box.maxLength}`; };
+  box.oninput = paint;
+  paint();
+}
+$("#preview-download").addEventListener("click", () => previewId && downloadFile(previewId).catch(() => {}));
 $("#preview-close").addEventListener("click", () => $("#preview").close());
 $("#preview-send").addEventListener("click", async () => {
   const text = $("#preview-text").value.trim();
@@ -775,14 +788,18 @@ function agencyList() {
 async function askChange(a, text) {
   try {
     await api("POST", "/api/requests", { kind: "agency_mail", target: a.id, change: text, file_id: a.file_id || "" });
+    state.agChanging = null;
     agencyNote(t("ag.change_sent"));
   } catch (e) { agencyNote(errText(e.code), "error"); }
   await renderAgencies();
 }
 function changeBox(a) {
-  const box = el("details", { class: "change" }, [el("summary", { class: "button ghost small", text: t("ag.ask_change") })]);
-  const text = el("textarea", { rows: 3, placeholder: t("ag.change_ph") });
-  box.append(text, el("button", { class: "small", text: t("ag.send_change"), onclick: () => { if (text.value.trim()) askChange(a, text.value.trim()); } }));
+  const box = el("div", { class: "change" });
+  const text = el("textarea", { rows: 3, placeholder: t("ag.change_ph"), maxlength: 2000 });
+  const count = el("span", { class: "muted counter" });
+  countChars(text, count);
+  box.append(el("label", {}, [t("ag.change_label"), text]), el("div", { class: "row" }, [
+    el("button", { class: "small", text: t("ag.send_change"), onclick: () => { if (text.value.trim()) askChange(a, text.value.trim()); } }), count]));
   return box;
 }
 async function saveAgency(id, change) {
@@ -866,7 +883,10 @@ function mailBlock(a) {
     el("div", { class: "row", style: "justify-content:flex-start" }, [menu,
       a.cv_file_id && el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(a.cv_file_id, "", a.status === "ready" ? (txt) => askChange(a, txt) : null).catch(() => {}) }),
       a.cv_file_id && el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
-      el("button", { class: "ghost small", text: t("ag.edit"), onclick: () => { state.agEditing = a.id; drawAgencies(); } })].filter(Boolean))]);
+      el("button", { class: "ghost small", text: t("ag.edit"), onclick: () => { state.agEditing = a.id; drawAgencies(); } }),
+      a.status === "ready" && el("button", { class: "ghost small", text: t("ag.ask_change"), onclick: () => {
+        state.agChanging = state.agChanging === a.id ? null : a.id; drawAgencies(); } })].filter(Boolean)),
+    a.status === "ready" && state.agChanging === a.id && changeBox(a)].filter(Boolean));
 }
 function mailEditor(a) {
   const to = el("input", { type: "text", value: a.mail.to });
@@ -931,8 +951,8 @@ function agencyCard(a) {
     const block = state.agEditing === a.id ? mailEditor(a) : mailBlock(a);
     parts.push(agSection(a.status) === "prep" ? block : el("details", {}, [el("summary", { class: "muted", text: t("ag.sent_mail") }), block]));
     if (a.status === "ready") {
-      parts.push(el("div", { class: "row", style: "justify-content:flex-start;align-items:flex-start" }, [
-        el("button", { text: t("ag.i_sent"), onclick: () => { state.agTab = "sent"; saveAgency(a.id, { status: "sent" }); } }), changeBox(a)]));
+      parts.push(el("div", { class: "final" }, [
+        el("button", { text: t("ag.i_sent"), onclick: () => { state.agTab = "sent"; saveAgency(a.id, { status: "sent" }); } })]));
     }
   }
   if (a.status === "ready" && !a.mail && a.cv_file_id) {

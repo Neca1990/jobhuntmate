@@ -63,13 +63,14 @@
     <div class="preview-head">
       <strong id="preview-title"></strong>
       <div class="row">
-        <a id="preview-open" class="button ghost small" target="_blank" rel="noopener" data-t="open_tab"></a>
+        <button id="preview-download" class="ghost small" type="button" data-t="f.download"></button>
         <button id="preview-close" class="ghost small" type="button" data-t="close"></button>
       </div>
     </div>
-    <iframe id="preview-frame" title="Preview"></iframe>
+    <div id="preview-pages" class="preview-pages"></div>
     <div id="preview-feedback" class="preview-feedback hidden">
-      <label><span data-t="ag.change_label"></span><textarea id="preview-text" rows="2"></textarea></label>
+      <label><span data-t="ag.change_label"></span><textarea id="preview-text" rows="2" maxlength="2000"></textarea></label>
+      <span id="preview-count" class="muted counter"></span>
       <button id="preview-send" class="small" type="button" data-t="ag.send_change"></button>
     </div>
   </dialog>

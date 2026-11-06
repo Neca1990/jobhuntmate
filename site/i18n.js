@@ -19,7 +19,7 @@ const TEXT = {
     // app
     "tab.searches": "Searches", "tab.applications": "Applications", "tab.account": "Account", "tab.admin": "Admin",
     "tab.agencies": "Recruiters", cancel: "Cancel", copy: "📋 Copy",
-    "f.view": "👁 View CV", open_tab: "↗ Open in a new tab", close: "✕ Close",
+    "f.view": "👁 View CV", "f.preview_failed": "Couldn't show this file here – download it instead.", open_tab: "↗ Open in a new tab", close: "✕ Close",
     "f.title": "My CVs", "f.add": "+ Upload a CV", "f.download": "Download", "f.none": "No files yet.",
     "f.note": "PDF or Word, up to 1.5 MB. Kept on your account; only you can see them.", "f.tailored": "tailored",
     "f.confirm_delete": "Delete this file?", "err.file_too_large": "The file is larger than 1.5 MB.", "err.unsupported_file": "Use a PDF, Word (.docx) or text file.",
@@ -127,7 +127,7 @@ const TEXT = {
     "err.default": "Nešto nije uspelo. Probaj ponovo.",
     "tab.searches": "Pretrage", "tab.applications": "Prijave", "tab.account": "Nalog", "tab.admin": "Administracija",
     "tab.agencies": "Headhunteri", cancel: "Otkaži", copy: "📋 Kopiraj",
-    "f.view": "👁 Pregledaj CV", open_tab: "↗ Otvori u novom tabu", close: "✕ Zatvori",
+    "f.view": "👁 Pregledaj CV", "f.preview_failed": "Ovaj fajl ne mogu da prikažem ovde – preuzmi ga.", open_tab: "↗ Otvori u novom tabu", close: "✕ Zatvori",
     "f.title": "Moji CV-i", "f.add": "+ Dodaj CV", "f.download": "Preuzmi", "f.none": "Još nema fajlova.",
     "f.note": "PDF ili Word, do 1,5 MB. Čuvaju se na tvom nalogu i vidiš ih samo ti.", "f.tailored": "prilagođen",
     "f.confirm_delete": "Obrisati ovaj fajl?", "err.file_too_large": "Fajl je veći od 1,5 MB.", "err.unsupported_file": "Koristi PDF, Word (.docx) ili tekstualni fajl.",
