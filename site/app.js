@@ -1112,7 +1112,7 @@ function agencyCard(a) {
       el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
       a.prijava_link && el("a", { class: "button ghost small", href: a.prijava_link, target: "_blank", rel: "noopener noreferrer", text: t("ag.apply_site") })].filter(Boolean)));
   }
-  if (a.status === "sent" && a.mail) parts.push(agencyFollowup(a));
+  if (a.status === "sent") parts.push(agencyFollowup(a));
   if (a.own && a.status !== "new") parts.push(el("div", { class: "actions" }, [
     el("button", { class: "danger small push-right", text: t("s.remove"), onclick: () => removeOwn(a) })]));
   if ((a.history || []).length) parts.push(historyBlock(a));
