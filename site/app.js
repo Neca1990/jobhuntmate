@@ -767,6 +767,13 @@ function drawAgencies() {
   const note = state.agencyNote;
   state.agencyNote = null;
   const items = groups[state.agTab];
+  // something is being prepared: look again every 20 seconds while the tab is open, so it shows up by itself
+  clearTimeout(state.agTimer);
+  if (all.some((a) => a.status === "waiting")) {
+    state.agTimer = setTimeout(() => {
+      if (state.tab === "agencies" && document.visibilityState === "visible" && !document.activeElement?.closest?.("#tab-agencies")) renderAgencies();
+    }, 20000);
+  }
   $("#tab-agencies").replaceChildren(
     el("div", { class: "card" }, [el("h2", { text: t("tab.agencies") }), el("p", { class: "muted", text: t("ag.intro") }), tabs,
       note && el("p", { class: note.cls, text: note.text }),
