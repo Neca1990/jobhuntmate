@@ -1,0 +1,415 @@
+{
+ "levels": [
+  {
+   "id": "native",
+   "name": "maternji"
+  },
+  {
+   "id": "advanced",
+   "name": "napredno (C1–C2)"
+  },
+  {
+   "id": "intermediate",
+   "name": "srednje (B1–B2)"
+  },
+  {
+   "id": "basic",
+   "name": "osnovno (A1–A2)"
+  },
+  {
+   "id": "understood",
+   "name": "razumem (srodan jezik)"
+  }
+ ],
+ "languages": [
+  {
+   "name": "English",
+   "label": "engleski",
+   "aliases": [
+    "english"
+   ]
+  },
+  {
+   "name": "German",
+   "label": "nemački",
+   "aliases": [
+    "german",
+    "deutsch"
+   ]
+  },
+  {
+   "name": "French",
+   "label": "francuski",
+   "aliases": [
+    "french",
+    "français",
+    "francais"
+   ]
+  },
+  {
+   "name": "Spanish",
+   "label": "španski",
+   "aliases": [
+    "spanish",
+    "español",
+    "espanol",
+    "castilian"
+   ]
+  },
+  {
+   "name": "Italian",
+   "label": "italijanski",
+   "aliases": [
+    "italian",
+    "italiano"
+   ]
+  },
+  {
+   "name": "Portuguese",
+   "label": "portugalski",
+   "aliases": [
+    "portuguese",
+    "português",
+    "portugues"
+   ]
+  },
+  {
+   "name": "Dutch",
+   "label": "holandski",
+   "aliases": [
+    "dutch",
+    "flemish",
+    "nederlands"
+   ]
+  },
+  {
+   "name": "Polish",
+   "label": "poljski",
+   "aliases": [
+    "polish",
+    "polski"
+   ]
+  },
+  {
+   "name": "Ukrainian",
+   "label": "ukrajinski",
+   "aliases": [
+    "ukrainian",
+    "українська"
+   ]
+  },
+  {
+   "name": "Russian",
+   "label": "ruski",
+   "aliases": [
+    "russian",
+    "русский"
+   ]
+  },
+  {
+   "name": "Czech",
+   "label": "češki",
+   "aliases": [
+    "czech",
+    "čeština"
+   ]
+  },
+  {
+   "name": "Slovak",
+   "label": "slovački",
+   "aliases": [
+    "slovak",
+    "slovenčina"
+   ]
+  },
+  {
+   "name": "Hungarian",
+   "label": "mađarski",
+   "aliases": [
+    "hungarian",
+    "magyar"
+   ]
+  },
+  {
+   "name": "Romanian",
+   "label": "rumunski",
+   "aliases": [
+    "romanian",
+    "română"
+   ]
+  },
+  {
+   "name": "Bulgarian",
+   "label": "bugarski",
+   "aliases": [
+    "bulgarian"
+   ]
+  },
+  {
+   "name": "Greek",
+   "label": "grčki",
+   "aliases": [
+    "greek"
+   ]
+  },
+  {
+   "name": "Swedish",
+   "label": "švedski",
+   "aliases": [
+    "swedish",
+    "svenska"
+   ]
+  },
+  {
+   "name": "Norwegian",
+   "label": "norveški",
+   "aliases": [
+    "norwegian",
+    "norsk"
+   ]
+  },
+  {
+   "name": "Danish",
+   "label": "danski",
+   "aliases": [
+    "danish",
+    "dansk"
+   ]
+  },
+  {
+   "name": "Finnish",
+   "label": "finski",
+   "aliases": [
+    "finnish",
+    "suomi"
+   ]
+  },
+  {
+   "name": "Estonian",
+   "label": "estonski",
+   "aliases": [
+    "estonian"
+   ]
+  },
+  {
+   "name": "Latvian",
+   "label": "letonski",
+   "aliases": [
+    "latvian"
+   ]
+  },
+  {
+   "name": "Lithuanian",
+   "label": "litvanski",
+   "aliases": [
+    "lithuanian"
+   ]
+  },
+  {
+   "name": "Slovenian",
+   "label": "slovenački",
+   "aliases": [
+    "slovenian",
+    "slovene"
+   ]
+  },
+  {
+   "name": "Croatian",
+   "label": "hrvatski",
+   "aliases": [
+    "croatian",
+    "hrvatski"
+   ]
+  },
+  {
+   "name": "Serbian",
+   "label": "srpski",
+   "aliases": [
+    "serbian",
+    "srpski"
+   ]
+  },
+  {
+   "name": "Bosnian",
+   "label": "bosanski",
+   "aliases": [
+    "bosnian"
+   ]
+  },
+  {
+   "name": "Montenegrin",
+   "label": "crnogorski",
+   "aliases": [
+    "montenegrin"
+   ]
+  },
+  {
+   "name": "Macedonian",
+   "label": "makedonski",
+   "aliases": [
+    "macedonian"
+   ]
+  },
+  {
+   "name": "Albanian",
+   "label": "albanski",
+   "aliases": [
+    "albanian"
+   ]
+  },
+  {
+   "name": "Turkish",
+   "label": "turski",
+   "aliases": [
+    "turkish",
+    "türkçe"
+   ]
+  },
+  {
+   "name": "Arabic",
+   "label": "arapski",
+   "aliases": [
+    "arabic"
+   ]
+  },
+  {
+   "name": "Hebrew",
+   "label": "hebrejski",
+   "aliases": [
+    "hebrew"
+   ]
+  },
+  {
+   "name": "Persian",
+   "label": "persijski",
+   "aliases": [
+    "persian",
+    "farsi"
+   ]
+  },
+  {
+   "name": "Hindi",
+   "label": "hindi",
+   "aliases": [
+    "hindi"
+   ]
+  },
+  {
+   "name": "Japanese",
+   "label": "japanski",
+   "aliases": [
+    "japanese"
+   ]
+  },
+  {
+   "name": "Chinese",
+   "label": "kineski",
+   "aliases": [
+    "chinese",
+    "mandarin",
+    "cantonese"
+   ]
+  },
+  {
+   "name": "Korean",
+   "label": "korejski",
+   "aliases": [
+    "korean"
+   ]
+  },
+  {
+   "name": "Vietnamese",
+   "label": "vijetnamski",
+   "aliases": [
+    "vietnamese"
+   ]
+  },
+  {
+   "name": "Indonesian",
+   "label": "indonežanski",
+   "aliases": [
+    "indonesian",
+    "bahasa"
+   ]
+  },
+  {
+   "name": "Thai",
+   "label": "tajlandski",
+   "aliases": [
+    "thai"
+   ]
+  },
+  {
+   "name": "Georgian",
+   "label": "gruzijski",
+   "aliases": [
+    "georgian"
+   ]
+  },
+  {
+   "name": "Armenian",
+   "label": "jermenski",
+   "aliases": [
+    "armenian"
+   ]
+  },
+  {
+   "name": "Azerbaijani",
+   "label": "azerbejdžanski",
+   "aliases": [
+    "azerbaijani",
+    "azeri"
+   ]
+  },
+  {
+   "name": "Kazakh",
+   "label": "kazaški",
+   "aliases": [
+    "kazakh"
+   ]
+  },
+  {
+   "name": "Uzbek",
+   "label": "uzbečki",
+   "aliases": [
+    "uzbek"
+   ]
+  },
+  {
+   "name": "Catalan",
+   "label": "katalonski",
+   "aliases": [
+    "catalan"
+   ]
+  },
+  {
+   "name": "Icelandic",
+   "label": "islandski",
+   "aliases": [
+    "icelandic"
+   ]
+  },
+  {
+   "name": "Maltese",
+   "label": "malteški",
+   "aliases": [
+    "maltese"
+   ]
+  },
+  {
+   "name": "Swiss German",
+   "label": "švajcarski nemački",
+   "aliases": [
+    "swiss german",
+    "schweizerdeutsch"
+   ]
+  },
+  {
+   "name": "Afrikaans",
+   "label": "afrikans",
+   "aliases": [
+    "afrikaans"
+   ]
+  }
+ ]
+}

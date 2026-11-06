@@ -1,0 +1,30 @@
+name: tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      # the job-site tests live in the private part; only pushes here can read it
+      - name: Private part (job sites)
+        id: private
+        if: github.event_name == 'push'
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: Neca1990/jobhuntmate-sources
+          ssh-key: ${{ secrets.SOURCES_DEPLOY_KEY }}
+          path: engine/plugins
+      - if: steps.private.outcome == 'success'
+        run: python -m pytest -q engine/plugins/tests
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm test

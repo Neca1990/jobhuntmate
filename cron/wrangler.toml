@@ -1,0 +1,13 @@
+# The search scheduler (a Cloudflare Worker with a cron trigger). Secrets: ENGINE_KEY, GH_TOKEN.
+name = "jobhuntmate-scheduler"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = false
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+SITE_URL = "https://jobhuntmate.pages.dev"
+REPO = "Neca1990/jobhuntmate"
+WORKFLOW = "search.yml"

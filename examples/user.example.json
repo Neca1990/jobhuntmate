@@ -1,0 +1,100 @@
+{
+  "name": "Test User",
+  "email": "test@example.com",
+  "active": true,
+  "language": "sr",
+  "country": "RS",
+  "notify_via": [
+    "telegram"
+  ],
+  "channels": {
+    "telegram": {
+      "chat_id": 111
+    }
+  },
+  "searches": [
+    {
+      "id": "qa-remote",
+      "name": "QA",
+      "family": "qa",
+      "specializations": [
+        "automation",
+        "manual"
+      ],
+      "seniority": [
+        "medior",
+        "senior"
+      ],
+      "employment_types": [
+        "full_time",
+        "contract"
+      ],
+      "locations": [
+        "remote",
+        "city:belgrade"
+      ],
+      "include_keywords": [],
+      "exclude_keywords": []
+    }
+  ],
+  "schedule": {
+    "interval_hours": 2,
+    "active_from": "08:00",
+    "active_to": "22:00"
+  },
+  "sources_enabled": {},
+  "max_messages_per_run": 8,
+  "max_age_days": 3,
+  "dealbreakers": {
+    "language": "drop",
+    "residency": "drop",
+    "citizenship": "drop",
+    "clearance": "drop"
+  },
+  "profile": {
+    "languages": [
+      {
+        "name": "Serbian",
+        "level": "native"
+      },
+      {
+        "name": "Croatian",
+        "level": "native"
+      },
+      {
+        "name": "Bosnian",
+        "level": "native"
+      },
+      {
+        "name": "Montenegrin",
+        "level": "native"
+      },
+      {
+        "name": "English",
+        "level": "advanced"
+      }
+    ],
+    "skills": [
+      {
+        "name": "Java",
+        "level": "strong"
+      },
+      {
+        "name": "Selenium",
+        "level": "strong"
+      },
+      {
+        "name": "Postman",
+        "level": "strong"
+      },
+      {
+        "name": "Jira",
+        "level": "strong"
+      },
+      {
+        "name": "SQL",
+        "level": "basic"
+      }
+    ]
+  }
+}

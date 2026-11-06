@@ -1,0 +1,3142 @@
+{
+  "families": [
+    {
+      "id": "qa",
+      "name": "QA / Testing",
+      "title_keywords": [
+        "qa",
+        "quality assurance",
+        "quality engineer",
+        "quality engineering",
+        "tester",
+        "testing",
+        "test engineer",
+        "test analyst",
+        "test automation",
+        "sdet",
+        "software development engineer in test",
+        "automation engineer",
+        "test lead",
+        "test manager",
+        "testiranje",
+        "testiranja",
+        "qa inženjer",
+        "qa inzenjer",
+        "inženjer za testiranje",
+        "tester softvera"
+      ],
+      "title_exclude_keywords": [
+        "penetration",
+        "pentest",
+        "clinical",
+        "laboratory",
+        "lab technician",
+        "driver",
+        "a/b test",
+        "user testing",
+        "usability tester"
+      ],
+      "specializations": [
+        {
+          "id": "automation",
+          "name": "Automation",
+          "keywords": [
+            "automation",
+            "automated",
+            "sdet",
+            "software development engineer in test",
+            "selenium",
+            "appium",
+            "playwright",
+            "cypress",
+            "webdriverio",
+            "test framework"
+          ],
+          "search_terms": [
+            "qa automation",
+            "sdet",
+            "test automation"
+          ],
+          "names": {
+            "sr": "Automatizacija"
+          }
+        },
+        {
+          "id": "manual",
+          "name": "Manual",
+          "keywords": [
+            "manual",
+            "qa tester",
+            "qa analyst",
+            "test analyst",
+            "functional testing",
+            "exploratory testing",
+            "test cases"
+          ],
+          "search_terms": [
+            "qa tester",
+            "manual qa",
+            "qa engineer"
+          ],
+          "names": {
+            "sr": "Manuelno"
+          }
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Java",
+          "aliases": [
+            "java"
+          ]
+        },
+        {
+          "name": "JavaScript",
+          "aliases": [
+            "javascript",
+            "js"
+          ]
+        },
+        {
+          "name": "TypeScript",
+          "aliases": [
+            "typescript",
+            "ts"
+          ]
+        },
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "C#",
+          "aliases": [
+            "c#",
+            ".net"
+          ]
+        },
+        {
+          "name": "Kotlin",
+          "aliases": [
+            "kotlin"
+          ]
+        },
+        {
+          "name": "Selenium",
+          "aliases": [
+            "selenium",
+            "webdriver"
+          ]
+        },
+        {
+          "name": "Appium",
+          "aliases": [
+            "appium"
+          ]
+        },
+        {
+          "name": "Playwright",
+          "aliases": [
+            "playwright"
+          ]
+        },
+        {
+          "name": "Cypress",
+          "aliases": [
+            "cypress"
+          ]
+        },
+        {
+          "name": "WebdriverIO",
+          "aliases": [
+            "webdriverio",
+            "wdio"
+          ]
+        },
+        {
+          "name": "TestNG",
+          "aliases": [
+            "testng"
+          ]
+        },
+        {
+          "name": "JUnit",
+          "aliases": [
+            "junit"
+          ]
+        },
+        {
+          "name": "Cucumber/BDD",
+          "aliases": [
+            "cucumber",
+            "bdd",
+            "gherkin"
+          ]
+        },
+        {
+          "name": "Maven",
+          "aliases": [
+            "maven"
+          ]
+        },
+        {
+          "name": "Gradle",
+          "aliases": [
+            "gradle"
+          ]
+        },
+        {
+          "name": "Page Object Model",
+          "aliases": [
+            "page object",
+            "pom",
+            "screenplay"
+          ]
+        },
+        {
+          "name": "Allure",
+          "aliases": [
+            "allure"
+          ]
+        },
+        {
+          "name": "Postman",
+          "aliases": [
+            "postman"
+          ]
+        },
+        {
+          "name": "RestAssured",
+          "aliases": [
+            "restassured",
+            "rest assured",
+            "rest-assured"
+          ]
+        },
+        {
+          "name": "REST API",
+          "aliases": [
+            "rest api",
+            "restful",
+            "rest apis",
+            "api testing"
+          ]
+        },
+        {
+          "name": "GraphQL",
+          "aliases": [
+            "graphql"
+          ]
+        },
+        {
+          "name": "SQL",
+          "aliases": [
+            "sql"
+          ]
+        },
+        {
+          "name": "PostgreSQL",
+          "aliases": [
+            "postgresql",
+            "postgres"
+          ]
+        },
+        {
+          "name": "MS SQL",
+          "aliases": [
+            "ms sql",
+            "mssql",
+            "sql server"
+          ]
+        },
+        {
+          "name": "Jenkins",
+          "aliases": [
+            "jenkins"
+          ]
+        },
+        {
+          "name": "GitHub Actions",
+          "aliases": [
+            "github actions"
+          ]
+        },
+        {
+          "name": "GitLab CI",
+          "aliases": [
+            "gitlab ci",
+            "gitlab"
+          ]
+        },
+        {
+          "name": "Azure DevOps",
+          "aliases": [
+            "azure devops",
+            "azure pipelines"
+          ]
+        },
+        {
+          "name": "CI/CD",
+          "aliases": [
+            "ci/cd",
+            "ci cd",
+            "continuous integration",
+            "pipelines"
+          ]
+        },
+        {
+          "name": "Docker",
+          "aliases": [
+            "docker",
+            "containers"
+          ]
+        },
+        {
+          "name": "Kubernetes",
+          "aliases": [
+            "kubernetes",
+            "k8s"
+          ]
+        },
+        {
+          "name": "AWS",
+          "aliases": [
+            "aws",
+            "amazon web services"
+          ]
+        },
+        {
+          "name": "k6",
+          "aliases": [
+            "k6"
+          ]
+        },
+        {
+          "name": "JMeter",
+          "aliases": [
+            "jmeter"
+          ]
+        },
+        {
+          "name": "Gatling",
+          "aliases": [
+            "gatling"
+          ]
+        },
+        {
+          "name": "BrowserStack",
+          "aliases": [
+            "browserstack"
+          ]
+        },
+        {
+          "name": "Sauce Labs",
+          "aliases": [
+            "sauce labs",
+            "saucelabs"
+          ]
+        },
+        {
+          "name": "Jira",
+          "aliases": [
+            "jira"
+          ]
+        },
+        {
+          "name": "Xray",
+          "aliases": [
+            "xray"
+          ]
+        },
+        {
+          "name": "TestRail",
+          "aliases": [
+            "testrail"
+          ]
+        },
+        {
+          "name": "Git",
+          "aliases": [
+            "git"
+          ]
+        },
+        {
+          "name": "Linux",
+          "aliases": [
+            "linux"
+          ]
+        },
+        {
+          "name": "iOS",
+          "aliases": [
+            "ios",
+            "xcuitest"
+          ]
+        },
+        {
+          "name": "Android",
+          "aliases": [
+            "android",
+            "espresso"
+          ]
+        },
+        {
+          "name": "Mobile testing",
+          "aliases": [
+            "mobile testing",
+            "mobile automation",
+            "mobile apps",
+            "mobile app"
+          ]
+        },
+        {
+          "name": "Maestro",
+          "aliases": [
+            "maestro"
+          ]
+        },
+        {
+          "name": "Agile/Scrum",
+          "aliases": [
+            "agile",
+            "scrum"
+          ]
+        },
+        {
+          "name": "OWASP/Security",
+          "aliases": [
+            "owasp",
+            "security testing"
+          ]
+        },
+        {
+          "name": "Visual regression",
+          "aliases": [
+            "percy",
+            "applitools",
+            "visual regression"
+          ]
+        }
+      ],
+      "board_query": "QA",
+      "site_terms": [
+        "qa",
+        "tester"
+      ],
+      "names": {
+        "sr": "QA / Testiranje"
+      }
+    },
+    {
+      "id": "backend",
+      "name": "Backend",
+      "names": {
+        "sr": "Backend"
+      },
+      "title_keywords": [
+        "backend",
+        "back-end",
+        "back end",
+        "server-side",
+        "api developer",
+        "api engineer",
+        "java developer",
+        "java engineer",
+        "python developer",
+        "python engineer",
+        "golang",
+        "go developer",
+        "go engineer",
+        ".net developer",
+        ".net engineer",
+        "c# developer",
+        "php developer",
+        "node.js developer",
+        "nodejs developer",
+        "node developer",
+        "ruby developer",
+        "rails developer",
+        "rust developer",
+        "rust engineer",
+        "scala developer",
+        "elixir developer",
+        "kotlin developer",
+        "spring developer",
+        "django developer"
+      ],
+      "title_exclude_keywords": [
+        "frontend",
+        "front-end",
+        "qa",
+        "test",
+        "devops",
+        "data engineer",
+        "full stack",
+        "fullstack",
+        "full-stack"
+      ],
+      "specializations": [
+        {
+          "id": "jvm",
+          "name": "Java / Kotlin / Scala",
+          "names": {
+            "sr": "Java / Kotlin / Scala"
+          },
+          "keywords": [
+            "java",
+            "kotlin",
+            "scala",
+            "spring"
+          ],
+          "search_terms": [
+            "java developer",
+            "backend java"
+          ]
+        },
+        {
+          "id": "python",
+          "name": "Python",
+          "names": {
+            "sr": "Python"
+          },
+          "keywords": [
+            "python",
+            "django",
+            "fastapi",
+            "flask"
+          ],
+          "search_terms": [
+            "python developer",
+            "backend python"
+          ]
+        },
+        {
+          "id": "dotnet",
+          "name": ".NET / C#",
+          "names": {
+            "sr": ".NET / C#"
+          },
+          "keywords": [
+            ".net",
+            "c#",
+            "asp.net"
+          ],
+          "search_terms": [
+            ".net developer"
+          ]
+        },
+        {
+          "id": "node",
+          "name": "Node.js",
+          "names": {
+            "sr": "Node.js"
+          },
+          "keywords": [
+            "node.js",
+            "nodejs",
+            "node",
+            "nestjs",
+            "express"
+          ],
+          "search_terms": [
+            "node.js developer"
+          ]
+        },
+        {
+          "id": "go",
+          "name": "Go",
+          "names": {
+            "sr": "Go"
+          },
+          "keywords": [
+            "golang",
+            "golang"
+          ],
+          "search_terms": [
+            "golang developer"
+          ]
+        },
+        {
+          "id": "php",
+          "name": "PHP",
+          "names": {
+            "sr": "PHP"
+          },
+          "keywords": [
+            "php",
+            "laravel",
+            "symfony"
+          ],
+          "search_terms": [
+            "php developer"
+          ]
+        },
+        {
+          "id": "other",
+          "name": "Other (Ruby, Rust, Elixir…)",
+          "names": {
+            "sr": "Ostalo (Ruby, Rust, Elixir…)"
+          },
+          "keywords": [
+            "ruby",
+            "rails",
+            "rust",
+            "elixir",
+            "c++"
+          ],
+          "search_terms": [
+            "backend developer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Java",
+          "aliases": [
+            "java"
+          ]
+        },
+        {
+          "name": "JavaScript",
+          "aliases": [
+            "javascript",
+            "js"
+          ]
+        },
+        {
+          "name": "TypeScript",
+          "aliases": [
+            "typescript",
+            "ts"
+          ]
+        },
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "C#",
+          "aliases": [
+            "c#",
+            ".net"
+          ]
+        },
+        {
+          "name": "Go",
+          "aliases": [
+            "golang"
+          ]
+        },
+        {
+          "name": "Kotlin",
+          "aliases": [
+            "kotlin"
+          ]
+        },
+        {
+          "name": "Swift",
+          "aliases": [
+            "swift"
+          ]
+        },
+        {
+          "name": "PHP",
+          "aliases": [
+            "php"
+          ]
+        },
+        {
+          "name": "Ruby",
+          "aliases": [
+            "ruby"
+          ]
+        },
+        {
+          "name": "Rust",
+          "aliases": [
+            "rust"
+          ]
+        },
+        {
+          "name": "C++",
+          "aliases": [
+            "c++"
+          ]
+        },
+        {
+          "name": "Scala",
+          "aliases": [
+            "scala"
+          ]
+        },
+        {
+          "name": "Elixir",
+          "aliases": [
+            "elixir"
+          ]
+        },
+        {
+          "name": "Spring",
+          "aliases": [
+            "spring"
+          ]
+        },
+        {
+          "name": "Django",
+          "aliases": [
+            "django"
+          ]
+        },
+        {
+          "name": "FastAPI",
+          "aliases": [
+            "fastapi"
+          ]
+        },
+        {
+          "name": "Node.js",
+          "aliases": [
+            "node.js",
+            "nodejs"
+          ]
+        },
+        {
+          "name": "NestJS",
+          "aliases": [
+            "nestjs"
+          ]
+        },
+        {
+          "name": "Laravel",
+          "aliases": [
+            "laravel"
+          ]
+        },
+        {
+          "name": "REST API",
+          "aliases": [
+            "rest",
+            "restful"
+          ]
+        },
+        {
+          "name": "GraphQL",
+          "aliases": [
+            "graphql"
+          ]
+        },
+        {
+          "name": "gRPC",
+          "aliases": [
+            "grpc"
+          ]
+        },
+        {
+          "name": "PostgreSQL",
+          "aliases": [
+            "postgresql"
+          ]
+        },
+        {
+          "name": "MySQL",
+          "aliases": [
+            "mysql"
+          ]
+        },
+        {
+          "name": "MongoDB",
+          "aliases": [
+            "mongodb"
+          ]
+        },
+        {
+          "name": "Redis",
+          "aliases": [
+            "redis"
+          ]
+        },
+        {
+          "name": "Kafka",
+          "aliases": [
+            "kafka"
+          ]
+        },
+        {
+          "name": "RabbitMQ",
+          "aliases": [
+            "rabbitmq"
+          ]
+        },
+        {
+          "name": "Docker",
+          "aliases": [
+            "docker"
+          ]
+        },
+        {
+          "name": "Kubernetes",
+          "aliases": [
+            "kubernetes"
+          ]
+        },
+        {
+          "name": "AWS",
+          "aliases": [
+            "aws"
+          ]
+        },
+        {
+          "name": "Azure",
+          "aliases": [
+            "azure"
+          ]
+        },
+        {
+          "name": "GCP",
+          "aliases": [
+            "gcp",
+            "google cloud"
+          ]
+        },
+        {
+          "name": "Microservices",
+          "aliases": [
+            "microservices"
+          ]
+        }
+      ],
+      "board_query": "backend developer",
+      "site_terms": [
+        "backend",
+        "developer"
+      ]
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend",
+      "names": {
+        "sr": "Frontend"
+      },
+      "title_keywords": [
+        "frontend",
+        "front-end",
+        "front end",
+        "react developer",
+        "react engineer",
+        "angular developer",
+        "vue developer",
+        "vue.js developer",
+        "javascript developer",
+        "typescript developer",
+        "ui developer",
+        "web developer",
+        "next.js developer"
+      ],
+      "title_exclude_keywords": [
+        "backend",
+        "back-end",
+        "qa",
+        "test",
+        "full stack",
+        "fullstack",
+        "full-stack",
+        "designer"
+      ],
+      "specializations": [
+        {
+          "id": "react",
+          "name": "React",
+          "names": {
+            "sr": "React"
+          },
+          "keywords": [
+            "react",
+            "next.js",
+            "nextjs"
+          ],
+          "search_terms": [
+            "react developer",
+            "frontend react"
+          ]
+        },
+        {
+          "id": "angular",
+          "name": "Angular",
+          "names": {
+            "sr": "Angular"
+          },
+          "keywords": [
+            "angular"
+          ],
+          "search_terms": [
+            "angular developer"
+          ]
+        },
+        {
+          "id": "vue",
+          "name": "Vue",
+          "names": {
+            "sr": "Vue"
+          },
+          "keywords": [
+            "vue",
+            "nuxt"
+          ],
+          "search_terms": [
+            "vue developer"
+          ]
+        },
+        {
+          "id": "other",
+          "name": "Other",
+          "names": {
+            "sr": "Ostalo"
+          },
+          "keywords": [
+            "svelte",
+            "javascript",
+            "typescript",
+            "html",
+            "css"
+          ],
+          "search_terms": [
+            "frontend developer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "JavaScript",
+          "aliases": [
+            "javascript",
+            "js"
+          ]
+        },
+        {
+          "name": "TypeScript",
+          "aliases": [
+            "typescript",
+            "ts"
+          ]
+        },
+        {
+          "name": "React",
+          "aliases": [
+            "react"
+          ]
+        },
+        {
+          "name": "Next.js",
+          "aliases": [
+            "next.js",
+            "nextjs"
+          ]
+        },
+        {
+          "name": "Angular",
+          "aliases": [
+            "angular"
+          ]
+        },
+        {
+          "name": "Vue",
+          "aliases": [
+            "vue"
+          ]
+        },
+        {
+          "name": "Svelte",
+          "aliases": [
+            "svelte"
+          ]
+        },
+        {
+          "name": "Redux",
+          "aliases": [
+            "redux"
+          ]
+        },
+        {
+          "name": "HTML",
+          "aliases": [
+            "html",
+            "html5"
+          ]
+        },
+        {
+          "name": "CSS",
+          "aliases": [
+            "css",
+            "css3"
+          ]
+        },
+        {
+          "name": "Sass",
+          "aliases": [
+            "sass",
+            "scss"
+          ]
+        },
+        {
+          "name": "Tailwind",
+          "aliases": [
+            "tailwind"
+          ]
+        },
+        {
+          "name": "Webpack",
+          "aliases": [
+            "webpack"
+          ]
+        },
+        {
+          "name": "Vite",
+          "aliases": [
+            "vite"
+          ]
+        },
+        {
+          "name": "Jest",
+          "aliases": [
+            "jest"
+          ]
+        },
+        {
+          "name": "Cypress",
+          "aliases": [
+            "cypress"
+          ]
+        },
+        {
+          "name": "Playwright",
+          "aliases": [
+            "playwright"
+          ]
+        },
+        {
+          "name": "GraphQL",
+          "aliases": [
+            "graphql"
+          ]
+        },
+        {
+          "name": "Figma",
+          "aliases": [
+            "figma"
+          ]
+        },
+        {
+          "name": "Accessibility",
+          "aliases": [
+            "accessibility",
+            "a11y"
+          ]
+        }
+      ],
+      "board_query": "frontend developer",
+      "site_terms": [
+        "frontend",
+        "react"
+      ]
+    },
+    {
+      "id": "fullstack",
+      "name": "Full stack",
+      "names": {
+        "sr": "Full stack"
+      },
+      "title_keywords": [
+        "full stack",
+        "fullstack",
+        "full-stack"
+      ],
+      "title_exclude_keywords": [
+        "qa",
+        "test"
+      ],
+      "specializations": [
+        {
+          "id": "js",
+          "name": "JavaScript / TypeScript",
+          "names": {
+            "sr": "JavaScript / TypeScript"
+          },
+          "keywords": [
+            "react",
+            "node",
+            "typescript",
+            "javascript",
+            "next.js"
+          ],
+          "search_terms": [
+            "full stack javascript"
+          ]
+        },
+        {
+          "id": "other",
+          "name": "Other stacks",
+          "names": {
+            "sr": "Ostalo"
+          },
+          "keywords": [
+            "java",
+            "python",
+            ".net",
+            "php",
+            "ruby",
+            "go"
+          ],
+          "search_terms": [
+            "full stack developer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Java",
+          "aliases": [
+            "java"
+          ]
+        },
+        {
+          "name": "JavaScript",
+          "aliases": [
+            "javascript",
+            "js"
+          ]
+        },
+        {
+          "name": "TypeScript",
+          "aliases": [
+            "typescript",
+            "ts"
+          ]
+        },
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "C#",
+          "aliases": [
+            "c#",
+            ".net"
+          ]
+        },
+        {
+          "name": "Go",
+          "aliases": [
+            "golang"
+          ]
+        },
+        {
+          "name": "Kotlin",
+          "aliases": [
+            "kotlin"
+          ]
+        },
+        {
+          "name": "Swift",
+          "aliases": [
+            "swift"
+          ]
+        },
+        {
+          "name": "PHP",
+          "aliases": [
+            "php"
+          ]
+        },
+        {
+          "name": "Ruby",
+          "aliases": [
+            "ruby"
+          ]
+        },
+        {
+          "name": "Rust",
+          "aliases": [
+            "rust"
+          ]
+        },
+        {
+          "name": "C++",
+          "aliases": [
+            "c++"
+          ]
+        },
+        {
+          "name": "Scala",
+          "aliases": [
+            "scala"
+          ]
+        },
+        {
+          "name": "Elixir",
+          "aliases": [
+            "elixir"
+          ]
+        },
+        {
+          "name": "React",
+          "aliases": [
+            "react"
+          ]
+        },
+        {
+          "name": "Angular",
+          "aliases": [
+            "angular"
+          ]
+        },
+        {
+          "name": "Vue",
+          "aliases": [
+            "vue"
+          ]
+        },
+        {
+          "name": "Node.js",
+          "aliases": [
+            "node.js",
+            "nodejs"
+          ]
+        },
+        {
+          "name": "Spring",
+          "aliases": [
+            "spring"
+          ]
+        },
+        {
+          "name": "Django",
+          "aliases": [
+            "django"
+          ]
+        },
+        {
+          "name": "Laravel",
+          "aliases": [
+            "laravel"
+          ]
+        },
+        {
+          "name": "PostgreSQL",
+          "aliases": [
+            "postgresql"
+          ]
+        },
+        {
+          "name": "MySQL",
+          "aliases": [
+            "mysql"
+          ]
+        },
+        {
+          "name": "MongoDB",
+          "aliases": [
+            "mongodb"
+          ]
+        },
+        {
+          "name": "Docker",
+          "aliases": [
+            "docker"
+          ]
+        },
+        {
+          "name": "AWS",
+          "aliases": [
+            "aws"
+          ]
+        },
+        {
+          "name": "GraphQL",
+          "aliases": [
+            "graphql"
+          ]
+        },
+        {
+          "name": "REST API",
+          "aliases": [
+            "rest",
+            "restful"
+          ]
+        }
+      ],
+      "board_query": "full stack developer",
+      "site_terms": [
+        "full stack",
+        "fullstack"
+      ]
+    },
+    {
+      "id": "mobile",
+      "name": "Mobile",
+      "names": {
+        "sr": "Mobilni razvoj"
+      },
+      "title_keywords": [
+        "android",
+        "ios",
+        "mobile developer",
+        "mobile engineer",
+        "flutter",
+        "react native",
+        "swift developer",
+        "kotlin developer",
+        "mobile app developer"
+      ],
+      "title_exclude_keywords": [
+        "qa",
+        "test",
+        "tester"
+      ],
+      "specializations": [
+        {
+          "id": "android",
+          "name": "Android",
+          "names": {
+            "sr": "Android"
+          },
+          "keywords": [
+            "android",
+            "kotlin",
+            "jetpack compose"
+          ],
+          "search_terms": [
+            "android developer"
+          ]
+        },
+        {
+          "id": "ios",
+          "name": "iOS",
+          "names": {
+            "sr": "iOS"
+          },
+          "keywords": [
+            "ios",
+            "swift",
+            "swiftui"
+          ],
+          "search_terms": [
+            "ios developer"
+          ]
+        },
+        {
+          "id": "cross",
+          "name": "Flutter / React Native",
+          "names": {
+            "sr": "Flutter / React Native"
+          },
+          "keywords": [
+            "flutter",
+            "dart",
+            "react native"
+          ],
+          "search_terms": [
+            "flutter developer",
+            "react native developer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Kotlin",
+          "aliases": [
+            "kotlin"
+          ]
+        },
+        {
+          "name": "Java",
+          "aliases": [
+            "java"
+          ]
+        },
+        {
+          "name": "Swift",
+          "aliases": [
+            "swift"
+          ]
+        },
+        {
+          "name": "SwiftUI",
+          "aliases": [
+            "swiftui"
+          ]
+        },
+        {
+          "name": "Objective-C",
+          "aliases": [
+            "objective-c"
+          ]
+        },
+        {
+          "name": "Jetpack Compose",
+          "aliases": [
+            "jetpack compose",
+            "compose"
+          ]
+        },
+        {
+          "name": "Flutter",
+          "aliases": [
+            "flutter"
+          ]
+        },
+        {
+          "name": "Dart",
+          "aliases": [
+            "dart"
+          ]
+        },
+        {
+          "name": "React Native",
+          "aliases": [
+            "react native"
+          ]
+        },
+        {
+          "name": "Firebase",
+          "aliases": [
+            "firebase"
+          ]
+        },
+        {
+          "name": "REST API",
+          "aliases": [
+            "rest",
+            "restful"
+          ]
+        },
+        {
+          "name": "GraphQL",
+          "aliases": [
+            "graphql"
+          ]
+        },
+        {
+          "name": "Room",
+          "aliases": [
+            "room"
+          ]
+        },
+        {
+          "name": "Core Data",
+          "aliases": [
+            "core data"
+          ]
+        },
+        {
+          "name": "Xcode",
+          "aliases": [
+            "xcode"
+          ]
+        },
+        {
+          "name": "Android Studio",
+          "aliases": [
+            "android studio"
+          ]
+        },
+        {
+          "name": "CI/CD",
+          "aliases": [
+            "ci/cd",
+            "ci",
+            "cd"
+          ]
+        },
+        {
+          "name": "Fastlane",
+          "aliases": [
+            "fastlane"
+          ]
+        }
+      ],
+      "board_query": "mobile developer",
+      "site_terms": [
+        "android",
+        "ios",
+        "mobile"
+      ]
+    },
+    {
+      "id": "devops",
+      "name": "DevOps / Cloud / SRE",
+      "names": {
+        "sr": "DevOps / Cloud / SRE"
+      },
+      "title_keywords": [
+        "devops",
+        "dev ops",
+        "sre",
+        "site reliability",
+        "platform engineer",
+        "cloud engineer",
+        "cloud architect",
+        "infrastructure engineer",
+        "kubernetes",
+        "devsecops",
+        "release engineer",
+        "build engineer",
+        "mlops"
+      ],
+      "title_exclude_keywords": [
+        "qa",
+        "test",
+        "sales"
+      ],
+      "specializations": [
+        {
+          "id": "devops",
+          "name": "DevOps / CI/CD",
+          "names": {
+            "sr": "DevOps / CI/CD"
+          },
+          "keywords": [
+            "devops",
+            "ci/cd",
+            "jenkins",
+            "github actions",
+            "gitlab ci"
+          ],
+          "search_terms": [
+            "devops engineer"
+          ]
+        },
+        {
+          "id": "cloud",
+          "name": "Cloud",
+          "names": {
+            "sr": "Cloud"
+          },
+          "keywords": [
+            "aws",
+            "azure",
+            "gcp",
+            "cloud"
+          ],
+          "search_terms": [
+            "cloud engineer"
+          ]
+        },
+        {
+          "id": "sre",
+          "name": "SRE / Platform",
+          "names": {
+            "sr": "SRE / Platform"
+          },
+          "keywords": [
+            "sre",
+            "site reliability",
+            "platform",
+            "observability"
+          ],
+          "search_terms": [
+            "site reliability engineer",
+            "platform engineer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Docker",
+          "aliases": [
+            "docker"
+          ]
+        },
+        {
+          "name": "Kubernetes",
+          "aliases": [
+            "kubernetes"
+          ]
+        },
+        {
+          "name": "Helm",
+          "aliases": [
+            "helm"
+          ]
+        },
+        {
+          "name": "Terraform",
+          "aliases": [
+            "terraform"
+          ]
+        },
+        {
+          "name": "Ansible",
+          "aliases": [
+            "ansible"
+          ]
+        },
+        {
+          "name": "AWS",
+          "aliases": [
+            "aws"
+          ]
+        },
+        {
+          "name": "Azure",
+          "aliases": [
+            "azure"
+          ]
+        },
+        {
+          "name": "GCP",
+          "aliases": [
+            "gcp",
+            "google cloud"
+          ]
+        },
+        {
+          "name": "Linux",
+          "aliases": [
+            "linux"
+          ]
+        },
+        {
+          "name": "Bash",
+          "aliases": [
+            "bash"
+          ]
+        },
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "Go",
+          "aliases": [
+            "golang"
+          ]
+        },
+        {
+          "name": "Jenkins",
+          "aliases": [
+            "jenkins"
+          ]
+        },
+        {
+          "name": "GitHub Actions",
+          "aliases": [
+            "github actions"
+          ]
+        },
+        {
+          "name": "GitLab CI",
+          "aliases": [
+            "gitlab ci",
+            "gitlab"
+          ]
+        },
+        {
+          "name": "ArgoCD",
+          "aliases": [
+            "argocd"
+          ]
+        },
+        {
+          "name": "Prometheus",
+          "aliases": [
+            "prometheus"
+          ]
+        },
+        {
+          "name": "Grafana",
+          "aliases": [
+            "grafana"
+          ]
+        },
+        {
+          "name": "ELK",
+          "aliases": [
+            "elk"
+          ]
+        },
+        {
+          "name": "Datadog",
+          "aliases": [
+            "datadog"
+          ]
+        },
+        {
+          "name": "Nginx",
+          "aliases": [
+            "nginx"
+          ]
+        }
+      ],
+      "board_query": "devops",
+      "site_terms": [
+        "devops",
+        "cloud"
+      ]
+    },
+    {
+      "id": "data",
+      "name": "Data engineering / Analytics",
+      "names": {
+        "sr": "Podaci / Analitika"
+      },
+      "title_keywords": [
+        "data engineer",
+        "data analyst",
+        "analytics engineer",
+        "bi developer",
+        "bi analyst",
+        "business intelligence",
+        "etl developer",
+        "data warehouse",
+        "big data",
+        "database administrator",
+        "dba",
+        "power bi"
+      ],
+      "title_exclude_keywords": [
+        "qa",
+        "test",
+        "data entry",
+        "sales"
+      ],
+      "specializations": [
+        {
+          "id": "engineering",
+          "name": "Data engineering",
+          "names": {
+            "sr": "Data engineering"
+          },
+          "keywords": [
+            "data engineer",
+            "etl",
+            "pipeline",
+            "spark",
+            "airflow"
+          ],
+          "search_terms": [
+            "data engineer"
+          ]
+        },
+        {
+          "id": "analytics",
+          "name": "Analytics / BI",
+          "names": {
+            "sr": "Analitika / BI"
+          },
+          "keywords": [
+            "analyst",
+            "analytics",
+            "bi",
+            "power bi",
+            "tableau",
+            "looker"
+          ],
+          "search_terms": [
+            "data analyst",
+            "bi developer"
+          ]
+        },
+        {
+          "id": "dba",
+          "name": "Databases",
+          "names": {
+            "sr": "Baze podataka"
+          },
+          "keywords": [
+            "dba",
+            "database administrator",
+            "postgresql",
+            "oracle"
+          ],
+          "search_terms": [
+            "database administrator"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "SQL",
+          "aliases": [
+            "sql"
+          ]
+        },
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "Spark",
+          "aliases": [
+            "spark"
+          ]
+        },
+        {
+          "name": "PySpark",
+          "aliases": [
+            "pyspark"
+          ]
+        },
+        {
+          "name": "Airflow",
+          "aliases": [
+            "airflow"
+          ]
+        },
+        {
+          "name": "dbt",
+          "aliases": [
+            "dbt"
+          ]
+        },
+        {
+          "name": "Kafka",
+          "aliases": [
+            "kafka"
+          ]
+        },
+        {
+          "name": "Snowflake",
+          "aliases": [
+            "snowflake"
+          ]
+        },
+        {
+          "name": "BigQuery",
+          "aliases": [
+            "bigquery"
+          ]
+        },
+        {
+          "name": "Redshift",
+          "aliases": [
+            "redshift"
+          ]
+        },
+        {
+          "name": "Databricks",
+          "aliases": [
+            "databricks"
+          ]
+        },
+        {
+          "name": "Power BI",
+          "aliases": [
+            "power bi"
+          ]
+        },
+        {
+          "name": "Tableau",
+          "aliases": [
+            "tableau"
+          ]
+        },
+        {
+          "name": "Looker",
+          "aliases": [
+            "looker"
+          ]
+        },
+        {
+          "name": "Excel",
+          "aliases": [
+            "excel"
+          ]
+        },
+        {
+          "name": "PostgreSQL",
+          "aliases": [
+            "postgresql"
+          ]
+        },
+        {
+          "name": "Oracle",
+          "aliases": [
+            "oracle"
+          ]
+        },
+        {
+          "name": "AWS",
+          "aliases": [
+            "aws"
+          ]
+        },
+        {
+          "name": "Azure",
+          "aliases": [
+            "azure"
+          ]
+        }
+      ],
+      "board_query": "data engineer",
+      "site_terms": [
+        "data",
+        "analyst"
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "AI / ML",
+      "names": {
+        "sr": "AI / ML"
+      },
+      "title_keywords": [
+        "machine learning",
+        "ml engineer",
+        "ai engineer",
+        "artificial intelligence",
+        "deep learning",
+        "data scientist",
+        "data science",
+        "llm",
+        "nlp",
+        "computer vision",
+        "genai",
+        "generative ai",
+        "prompt engineer",
+        "ai researcher",
+        "research scientist",
+        "applied scientist",
+        "ai trainer",
+        "ai evaluator",
+        "ai specialist",
+        "ai developer",
+        "mlops"
+      ],
+      "title_exclude_keywords": [
+        "sales",
+        "recruiter"
+      ],
+      "specializations": [
+        {
+          "id": "ml",
+          "name": "ML engineering",
+          "names": {
+            "sr": "ML engineering"
+          },
+          "keywords": [
+            "machine learning",
+            "ml engineer",
+            "pytorch",
+            "tensorflow",
+            "mlops"
+          ],
+          "search_terms": [
+            "machine learning engineer"
+          ]
+        },
+        {
+          "id": "llm",
+          "name": "LLM / Generative AI",
+          "names": {
+            "sr": "LLM / generativni AI"
+          },
+          "keywords": [
+            "llm",
+            "genai",
+            "generative ai",
+            "rag",
+            "langchain",
+            "openai",
+            "prompt"
+          ],
+          "search_terms": [
+            "ai engineer",
+            "llm engineer"
+          ]
+        },
+        {
+          "id": "ds",
+          "name": "Data science",
+          "names": {
+            "sr": "Data science"
+          },
+          "keywords": [
+            "data scientist",
+            "data science",
+            "statistics",
+            "modeling"
+          ],
+          "search_terms": [
+            "data scientist"
+          ]
+        },
+        {
+          "id": "cv_nlp",
+          "name": "Computer vision / NLP",
+          "names": {
+            "sr": "Computer vision / NLP"
+          },
+          "keywords": [
+            "computer vision",
+            "nlp",
+            "natural language"
+          ],
+          "search_terms": [
+            "computer vision engineer",
+            "nlp engineer"
+          ]
+        },
+        {
+          "id": "eval",
+          "name": "AI training & evaluation",
+          "names": {
+            "sr": "Treniranje i evaluacija AI"
+          },
+          "keywords": [
+            "ai trainer",
+            "evaluation",
+            "rlhf",
+            "annotation",
+            "red teaming"
+          ],
+          "search_terms": [
+            "ai trainer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "PyTorch",
+          "aliases": [
+            "pytorch"
+          ]
+        },
+        {
+          "name": "TensorFlow",
+          "aliases": [
+            "tensorflow"
+          ]
+        },
+        {
+          "name": "scikit-learn",
+          "aliases": [
+            "scikit-learn",
+            "sklearn"
+          ]
+        },
+        {
+          "name": "Pandas",
+          "aliases": [
+            "pandas"
+          ]
+        },
+        {
+          "name": "NumPy",
+          "aliases": [
+            "numpy"
+          ]
+        },
+        {
+          "name": "Hugging Face",
+          "aliases": [
+            "hugging face",
+            "huggingface"
+          ]
+        },
+        {
+          "name": "LangChain",
+          "aliases": [
+            "langchain"
+          ]
+        },
+        {
+          "name": "LLM",
+          "aliases": [
+            "llm",
+            "llms"
+          ]
+        },
+        {
+          "name": "RAG",
+          "aliases": [
+            "rag"
+          ]
+        },
+        {
+          "name": "OpenAI API",
+          "aliases": [
+            "openai"
+          ]
+        },
+        {
+          "name": "Prompt engineering",
+          "aliases": [
+            "prompt engineering"
+          ]
+        },
+        {
+          "name": "MLOps",
+          "aliases": [
+            "mlops"
+          ]
+        },
+        {
+          "name": "MLflow",
+          "aliases": [
+            "mlflow"
+          ]
+        },
+        {
+          "name": "Kubeflow",
+          "aliases": [
+            "kubeflow"
+          ]
+        },
+        {
+          "name": "Computer vision",
+          "aliases": [
+            "computer vision",
+            "opencv"
+          ]
+        },
+        {
+          "name": "NLP",
+          "aliases": [
+            "nlp"
+          ]
+        },
+        {
+          "name": "SQL",
+          "aliases": [
+            "sql"
+          ]
+        },
+        {
+          "name": "Spark",
+          "aliases": [
+            "spark"
+          ]
+        },
+        {
+          "name": "AWS",
+          "aliases": [
+            "aws",
+            "sagemaker"
+          ]
+        },
+        {
+          "name": "GCP",
+          "aliases": [
+            "gcp",
+            "vertex ai"
+          ]
+        },
+        {
+          "name": "Docker",
+          "aliases": [
+            "docker"
+          ]
+        }
+      ],
+      "board_query": "machine learning",
+      "site_terms": [
+        "ai",
+        "machine learning"
+      ]
+    },
+    {
+      "id": "product",
+      "name": "Product / Project management",
+      "names": {
+        "sr": "Produkt i projektni menadžment"
+      },
+      "title_keywords": [
+        "product manager",
+        "product owner",
+        "project manager",
+        "program manager",
+        "delivery manager",
+        "scrum master",
+        "agile coach",
+        "technical project manager",
+        "product lead",
+        "head of product",
+        "business analyst"
+      ],
+      "title_exclude_keywords": [
+        "construction",
+        "sales",
+        "marketing manager"
+      ],
+      "specializations": [
+        {
+          "id": "product",
+          "name": "Product",
+          "names": {
+            "sr": "Produkt"
+          },
+          "keywords": [
+            "product manager",
+            "product owner",
+            "product lead",
+            "roadmap"
+          ],
+          "search_terms": [
+            "product manager",
+            "product owner"
+          ]
+        },
+        {
+          "id": "project",
+          "name": "Project / Delivery",
+          "names": {
+            "sr": "Projekat / isporuka"
+          },
+          "keywords": [
+            "project manager",
+            "delivery manager",
+            "program manager"
+          ],
+          "search_terms": [
+            "project manager it"
+          ]
+        },
+        {
+          "id": "agile",
+          "name": "Scrum / Agile",
+          "names": {
+            "sr": "Scrum / Agile"
+          },
+          "keywords": [
+            "scrum master",
+            "agile coach",
+            "scrum"
+          ],
+          "search_terms": [
+            "scrum master"
+          ]
+        },
+        {
+          "id": "ba",
+          "name": "Business analysis",
+          "names": {
+            "sr": "Biznis analiza"
+          },
+          "keywords": [
+            "business analyst",
+            "requirements"
+          ],
+          "search_terms": [
+            "business analyst"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Jira",
+          "aliases": [
+            "jira"
+          ]
+        },
+        {
+          "name": "Confluence",
+          "aliases": [
+            "confluence"
+          ]
+        },
+        {
+          "name": "Scrum",
+          "aliases": [
+            "scrum"
+          ]
+        },
+        {
+          "name": "Kanban",
+          "aliases": [
+            "kanban"
+          ]
+        },
+        {
+          "name": "Agile",
+          "aliases": [
+            "agile"
+          ]
+        },
+        {
+          "name": "Roadmapping",
+          "aliases": [
+            "roadmap"
+          ]
+        },
+        {
+          "name": "Stakeholder management",
+          "aliases": [
+            "stakeholder"
+          ]
+        },
+        {
+          "name": "SQL",
+          "aliases": [
+            "sql"
+          ]
+        },
+        {
+          "name": "A/B testing",
+          "aliases": [
+            "a/b testing"
+          ]
+        },
+        {
+          "name": "Analytics",
+          "aliases": [
+            "analytics",
+            "amplitude",
+            "mixpanel"
+          ]
+        },
+        {
+          "name": "Figma",
+          "aliases": [
+            "figma"
+          ]
+        },
+        {
+          "name": "PMP",
+          "aliases": [
+            "pmp"
+          ]
+        },
+        {
+          "name": "PSM",
+          "aliases": [
+            "psm"
+          ]
+        },
+        {
+          "name": "SAFe",
+          "aliases": [
+            "safe"
+          ]
+        }
+      ],
+      "board_query": "product manager",
+      "site_terms": [
+        "product",
+        "project manager"
+      ]
+    },
+    {
+      "id": "design",
+      "name": "UX / UI design",
+      "names": {
+        "sr": "UX / UI dizajn"
+      },
+      "title_keywords": [
+        "ux designer",
+        "ui designer",
+        "ui/ux",
+        "ux/ui",
+        "product designer",
+        "interaction designer",
+        "ux researcher",
+        "visual designer",
+        "web designer",
+        "design lead"
+      ],
+      "title_exclude_keywords": [
+        "graphic designer print",
+        "interior",
+        "fashion"
+      ],
+      "specializations": [
+        {
+          "id": "product",
+          "name": "Product / UX / UI",
+          "names": {
+            "sr": "Produkt / UX / UI"
+          },
+          "keywords": [
+            "ux",
+            "ui",
+            "product designer",
+            "interaction"
+          ],
+          "search_terms": [
+            "product designer",
+            "ux designer"
+          ]
+        },
+        {
+          "id": "research",
+          "name": "UX research",
+          "names": {
+            "sr": "UX istraživanje"
+          },
+          "keywords": [
+            "ux researcher",
+            "user research",
+            "usability"
+          ],
+          "search_terms": [
+            "ux researcher"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Figma",
+          "aliases": [
+            "figma"
+          ]
+        },
+        {
+          "name": "Sketch",
+          "aliases": [
+            "sketch"
+          ]
+        },
+        {
+          "name": "Adobe XD",
+          "aliases": [
+            "adobe xd"
+          ]
+        },
+        {
+          "name": "Prototyping",
+          "aliases": [
+            "prototyping",
+            "prototype"
+          ]
+        },
+        {
+          "name": "Design systems",
+          "aliases": [
+            "design system"
+          ]
+        },
+        {
+          "name": "User research",
+          "aliases": [
+            "user research"
+          ]
+        },
+        {
+          "name": "Usability testing",
+          "aliases": [
+            "usability testing"
+          ]
+        },
+        {
+          "name": "Accessibility",
+          "aliases": [
+            "accessibility",
+            "wcag"
+          ]
+        },
+        {
+          "name": "HTML",
+          "aliases": [
+            "html"
+          ]
+        },
+        {
+          "name": "CSS",
+          "aliases": [
+            "css"
+          ]
+        },
+        {
+          "name": "Miro",
+          "aliases": [
+            "miro"
+          ]
+        },
+        {
+          "name": "Wireframing",
+          "aliases": [
+            "wireframe",
+            "wireframing"
+          ]
+        }
+      ],
+      "board_query": "product designer",
+      "site_terms": [
+        "ux",
+        "ui",
+        "designer"
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "names": {
+        "sr": "Bezbednost"
+      },
+      "title_keywords": [
+        "security engineer",
+        "cybersecurity",
+        "cyber security",
+        "penetration tester",
+        "pentester",
+        "appsec",
+        "application security",
+        "security analyst",
+        "soc analyst",
+        "information security",
+        "devsecops",
+        "security architect"
+      ],
+      "title_exclude_keywords": [
+        "guard",
+        "security officer",
+        "physical security"
+      ],
+      "specializations": [
+        {
+          "id": "offensive",
+          "name": "Penetration testing",
+          "names": {
+            "sr": "Penetraciono testiranje"
+          },
+          "keywords": [
+            "penetration",
+            "pentest",
+            "red team",
+            "ethical hacking"
+          ],
+          "search_terms": [
+            "penetration tester"
+          ]
+        },
+        {
+          "id": "appsec",
+          "name": "Application / Cloud security",
+          "names": {
+            "sr": "Bezbednost aplikacija / clouda"
+          },
+          "keywords": [
+            "appsec",
+            "application security",
+            "cloud security",
+            "devsecops"
+          ],
+          "search_terms": [
+            "application security engineer"
+          ]
+        },
+        {
+          "id": "soc",
+          "name": "SOC / Blue team",
+          "names": {
+            "sr": "SOC / Blue team"
+          },
+          "keywords": [
+            "soc",
+            "siem",
+            "incident response",
+            "blue team"
+          ],
+          "search_terms": [
+            "soc analyst"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "OWASP",
+          "aliases": [
+            "owasp"
+          ]
+        },
+        {
+          "name": "Burp Suite",
+          "aliases": [
+            "burp suite"
+          ]
+        },
+        {
+          "name": "Metasploit",
+          "aliases": [
+            "metasploit"
+          ]
+        },
+        {
+          "name": "Nmap",
+          "aliases": [
+            "nmap"
+          ]
+        },
+        {
+          "name": "SIEM",
+          "aliases": [
+            "siem",
+            "splunk"
+          ]
+        },
+        {
+          "name": "Splunk",
+          "aliases": [
+            "splunk"
+          ]
+        },
+        {
+          "name": "Incident response",
+          "aliases": [
+            "incident response"
+          ]
+        },
+        {
+          "name": "Threat modeling",
+          "aliases": [
+            "threat modeling"
+          ]
+        },
+        {
+          "name": "ISO 27001",
+          "aliases": [
+            "iso 27001"
+          ]
+        },
+        {
+          "name": "SOC 2",
+          "aliases": [
+            "soc 2"
+          ]
+        },
+        {
+          "name": "OSCP",
+          "aliases": [
+            "oscp"
+          ]
+        },
+        {
+          "name": "CISSP",
+          "aliases": [
+            "cissp"
+          ]
+        },
+        {
+          "name": "Linux",
+          "aliases": [
+            "linux"
+          ]
+        },
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "AWS",
+          "aliases": [
+            "aws"
+          ]
+        },
+        {
+          "name": "Azure",
+          "aliases": [
+            "azure"
+          ]
+        },
+        {
+          "name": "Kubernetes",
+          "aliases": [
+            "kubernetes"
+          ]
+        }
+      ],
+      "board_query": "security engineer",
+      "site_terms": [
+        "security",
+        "cyber"
+      ]
+    },
+    {
+      "id": "support",
+      "name": "IT support / Sysadmin",
+      "names": {
+        "sr": "IT podrška / sistem administracija"
+      },
+      "title_keywords": [
+        "it support",
+        "helpdesk",
+        "help desk",
+        "service desk",
+        "technical support",
+        "support engineer",
+        "system administrator",
+        "systems administrator",
+        "sysadmin",
+        "network engineer",
+        "network administrator",
+        "it administrator",
+        "desktop support",
+        "application support"
+      ],
+      "title_exclude_keywords": [
+        "sales",
+        "customer support representative"
+      ],
+      "specializations": [
+        {
+          "id": "support",
+          "name": "Support / Helpdesk",
+          "names": {
+            "sr": "Podrška / helpdesk"
+          },
+          "keywords": [
+            "support",
+            "helpdesk",
+            "help desk",
+            "service desk"
+          ],
+          "search_terms": [
+            "it support",
+            "technical support engineer"
+          ]
+        },
+        {
+          "id": "sysadmin",
+          "name": "System administration",
+          "names": {
+            "sr": "Sistem administracija"
+          },
+          "keywords": [
+            "system administrator",
+            "sysadmin",
+            "windows server",
+            "linux"
+          ],
+          "search_terms": [
+            "system administrator"
+          ]
+        },
+        {
+          "id": "network",
+          "name": "Networking",
+          "names": {
+            "sr": "Mreže"
+          },
+          "keywords": [
+            "network",
+            "cisco",
+            "ccna"
+          ],
+          "search_terms": [
+            "network engineer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Windows Server",
+          "aliases": [
+            "windows server"
+          ]
+        },
+        {
+          "name": "Active Directory",
+          "aliases": [
+            "active directory"
+          ]
+        },
+        {
+          "name": "Linux",
+          "aliases": [
+            "linux"
+          ]
+        },
+        {
+          "name": "Office 365",
+          "aliases": [
+            "office 365",
+            "microsoft 365"
+          ]
+        },
+        {
+          "name": "Intune",
+          "aliases": [
+            "intune"
+          ]
+        },
+        {
+          "name": "VMware",
+          "aliases": [
+            "vmware"
+          ]
+        },
+        {
+          "name": "Networking",
+          "aliases": [
+            "networking",
+            "tcp/ip"
+          ]
+        },
+        {
+          "name": "Cisco",
+          "aliases": [
+            "cisco",
+            "ccna"
+          ]
+        },
+        {
+          "name": "Bash",
+          "aliases": [
+            "bash"
+          ]
+        },
+        {
+          "name": "PowerShell",
+          "aliases": [
+            "powershell"
+          ]
+        },
+        {
+          "name": "ITIL",
+          "aliases": [
+            "itil"
+          ]
+        },
+        {
+          "name": "Jira",
+          "aliases": [
+            "jira"
+          ]
+        },
+        {
+          "name": "ServiceNow",
+          "aliases": [
+            "servicenow"
+          ]
+        },
+        {
+          "name": "SQL",
+          "aliases": [
+            "sql"
+          ]
+        }
+      ],
+      "board_query": "it support",
+      "site_terms": [
+        "support",
+        "administrator"
+      ]
+    },
+    {
+      "id": "software",
+      "name": "Software engineering (general)",
+      "names": {
+        "sr": "Softverski inženjering (opšte)"
+      },
+      "title_keywords": [
+        "software engineer",
+        "software developer",
+        "software development engineer",
+        "programmer",
+        "developer",
+        "embedded engineer",
+        "embedded developer",
+        "firmware engineer",
+        "game developer",
+        "unity developer"
+      ],
+      "title_exclude_keywords": [
+        "qa",
+        "test",
+        "sales",
+        "business developer",
+        "business development"
+      ],
+      "specializations": [
+        {
+          "id": "general",
+          "name": "General",
+          "names": {
+            "sr": "Opšte"
+          },
+          "keywords": [
+            "software",
+            "developer",
+            "engineer"
+          ],
+          "search_terms": [
+            "software engineer"
+          ]
+        },
+        {
+          "id": "embedded",
+          "name": "Embedded / Firmware",
+          "names": {
+            "sr": "Embedded / Firmware"
+          },
+          "keywords": [
+            "embedded",
+            "firmware",
+            "c++",
+            "rtos"
+          ],
+          "search_terms": [
+            "embedded software engineer"
+          ]
+        },
+        {
+          "id": "games",
+          "name": "Games",
+          "names": {
+            "sr": "Igre"
+          },
+          "keywords": [
+            "game",
+            "unity",
+            "unreal"
+          ],
+          "search_terms": [
+            "game developer"
+          ]
+        }
+      ],
+      "skills_catalog": [
+        {
+          "name": "Java",
+          "aliases": [
+            "java"
+          ]
+        },
+        {
+          "name": "JavaScript",
+          "aliases": [
+            "javascript",
+            "js"
+          ]
+        },
+        {
+          "name": "TypeScript",
+          "aliases": [
+            "typescript",
+            "ts"
+          ]
+        },
+        {
+          "name": "Python",
+          "aliases": [
+            "python"
+          ]
+        },
+        {
+          "name": "C#",
+          "aliases": [
+            "c#",
+            ".net"
+          ]
+        },
+        {
+          "name": "Go",
+          "aliases": [
+            "golang"
+          ]
+        },
+        {
+          "name": "Kotlin",
+          "aliases": [
+            "kotlin"
+          ]
+        },
+        {
+          "name": "Swift",
+          "aliases": [
+            "swift"
+          ]
+        },
+        {
+          "name": "PHP",
+          "aliases": [
+            "php"
+          ]
+        },
+        {
+          "name": "Ruby",
+          "aliases": [
+            "ruby"
+          ]
+        },
+        {
+          "name": "Rust",
+          "aliases": [
+            "rust"
+          ]
+        },
+        {
+          "name": "C++",
+          "aliases": [
+            "c++"
+          ]
+        },
+        {
+          "name": "Scala",
+          "aliases": [
+            "scala"
+          ]
+        },
+        {
+          "name": "Elixir",
+          "aliases": [
+            "elixir"
+          ]
+        },
+        {
+          "name": "Git",
+          "aliases": [
+            "git"
+          ]
+        },
+        {
+          "name": "Docker",
+          "aliases": [
+            "docker"
+          ]
+        },
+        {
+          "name": "Linux",
+          "aliases": [
+            "linux"
+          ]
+        },
+        {
+          "name": "SQL",
+          "aliases": [
+            "sql"
+          ]
+        },
+        {
+          "name": "REST API",
+          "aliases": [
+            "rest",
+            "restful"
+          ]
+        },
+        {
+          "name": "CI/CD",
+          "aliases": [
+            "ci/cd"
+          ]
+        },
+        {
+          "name": "Unity",
+          "aliases": [
+            "unity"
+          ]
+        },
+        {
+          "name": "Unreal",
+          "aliases": [
+            "unreal"
+          ]
+        },
+        {
+          "name": "RTOS",
+          "aliases": [
+            "rtos"
+          ]
+        },
+        {
+          "name": "Embedded C",
+          "aliases": [
+            "embedded c"
+          ]
+        }
+      ],
+      "board_query": "software engineer",
+      "site_terms": [
+        "developer",
+        "engineer"
+      ]
+    }
+  ],
+  "seniority": [
+    {
+      "id": "junior",
+      "name": "Junior",
+      "keywords": [
+        "junior",
+        "jr",
+        "entry level",
+        "entry-level",
+        "graduate",
+        "intern",
+        "internship",
+        "trainee"
+      ],
+      "names": {}
+    },
+    {
+      "id": "medior",
+      "name": "Medior",
+      "keywords": [
+        "mid",
+        "mid-level",
+        "middle",
+        "medior",
+        "intermediate",
+        "regular"
+      ],
+      "names": {}
+    },
+    {
+      "id": "senior",
+      "name": "Senior",
+      "keywords": [
+        "senior",
+        "sr",
+        "lead",
+        "principal",
+        "staff",
+        "head of",
+        "expert"
+      ],
+      "names": {}
+    }
+  ],
+  "employment_types": [
+    {
+      "id": "full_time",
+      "name": "Full-time",
+      "keywords": [
+        "full-time",
+        "full time",
+        "fulltime",
+        "full_time",
+        "permanent"
+      ]
+    },
+    {
+      "id": "part_time",
+      "name": "Part-time",
+      "keywords": [
+        "part-time",
+        "part time",
+        "parttime",
+        "part_time"
+      ]
+    },
+    {
+      "id": "contract",
+      "name": "Contract / Freelance",
+      "keywords": [
+        "contract",
+        "contractor",
+        "freelance",
+        "freelancer",
+        "temporary",
+        "b2b"
+      ]
+    }
+  ],
+  "note": "Job families, seniority and employment types. Places come from config/geo.json and the user's country."
+}

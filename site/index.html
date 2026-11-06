@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Sign in</title>
+  <link rel="stylesheet" href="style.css?v=__V__">
+</head>
+<body>
+  <div id="loader" class="loader" role="status" aria-label="Loading"><div class="spinner"></div></div>
+
+  <div id="login" class="center hidden">
+    <div class="login">
+      <div class="lang" data-lang-switch></div>
+      <h1 data-brand-name></h1>
+      <p class="muted" data-brand-tagline></p>
+      <section id="step-start">
+        <p data-t="intro"></p>
+        <label for="username" data-t="username_label"></label>
+        <input id="username" autocomplete="username" placeholder="@username">
+        <button id="start" class="wide" data-t="start"></button>
+      </section>
+      <section id="step-wait" class="hidden">
+        <p data-t="tap_number"></p>
+        <div id="match" class="match"></div>
+        <p class="muted" id="where"></p>
+        <a id="bot-link" class="button wide" target="_blank" rel="noopener" data-t="open_bot"></a>
+        <p class="waiting muted"><span class="dot"></span> <span data-t="waiting"></span></p>
+        <details id="code-box">
+          <summary class="muted" data-t="use_code"></summary>
+          <input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+          <button id="verify" class="wide" data-t="verify"></button>
+        </details>
+        <button id="restart" class="ghost wide" data-t="restart"></button>
+      </section>
+      <p class="error" id="login-error" role="alert"></p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <strong data-brand-name></strong>
+      <nav id="tabs"></nav>
+      <div class="lang" data-lang-switch></div>
+      <button id="sign-out" class="ghost small" data-t="sign_out"></button>
+    </header>
+    <main class="app">
+      <section id="tab-searches"></section>
+      <section id="tab-applications" class="hidden"></section>
+      <section id="tab-account" class="hidden"></section>
+      <section id="tab-admin" class="hidden"></section>
+    </main>
+    <div id="savebar" class="savebar hidden">
+      <span id="save-status" role="status"></span>
+      <button id="save" data-t="save"></button>
+    </div>
+  </div>
+
+  <div id="onboarding" class="overlay hidden"></div>
+  <div id="version" class="version" title="Version"></div>
+
+  <script type="module" src="app.js?v=__V__"></script>
+</body>
+</html>

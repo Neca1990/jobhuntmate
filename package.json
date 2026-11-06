@@ -1,0 +1,8 @@
+{
+  "name": "site-and-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tools/gen-brand.mjs && node --no-warnings --test tests-js/*.test.mjs"
+  }
+}

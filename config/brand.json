@@ -1,0 +1,11 @@
+{
+  "name": "JobHuntMate",
+  "tagline": {
+    "en": "Your job-hunt mate: new IT jobs found and sent to you.",
+    "sr": "Tvoj drugar u traženju posla: novi IT oglasi, pronađeni i poslati tebi."
+  },
+  "site_url": "https://jobhuntmate.pages.dev",
+  "pages_project": "jobhuntmate",
+  "bot_username": "job_alerts_notify_bot",
+  "support_email": ""
+}

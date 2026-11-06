@@ -1,0 +1,585 @@
+{
+  "note": "Where a user lives decides which remote postings are open to them and which cities they can pick. A posting that says only 'remote' with no region is kept as 'unknown'.",
+  "worldwide": [
+    "worldwide",
+    "anywhere",
+    "anywhere in the world",
+    "global",
+    "any country",
+    "work from anywhere"
+  ],
+  "regions": {
+    "europe": [
+      "europe",
+      "european",
+      "eu",
+      "emea",
+      "european time zones",
+      "european timezone"
+    ],
+    "cet": [
+      "cet",
+      "cest",
+      "gmt+1",
+      "gmt+2",
+      "utc+1",
+      "utc+2",
+      "central european time"
+    ],
+    "cee": [
+      "eastern europe",
+      "central europe",
+      "cee",
+      "central and eastern europe",
+      "south east europe",
+      "southeast europe",
+      "south-east europe",
+      "southeastern europe"
+    ],
+    "balkans": [
+      "balkan",
+      "balkans",
+      "western balkans"
+    ],
+    "uk_ie": [
+      "uk",
+      "united kingdom",
+      "ireland",
+      "gmt",
+      "bst"
+    ],
+    "north_america": [
+      "north america",
+      "americas",
+      "us",
+      "usa",
+      "united states",
+      "canada",
+      "est",
+      "pst",
+      "us time zones"
+    ],
+    "latam": [
+      "latam",
+      "latin america",
+      "south america",
+      "americas"
+    ]
+  },
+  "countries": [
+    {
+      "code": "RS",
+      "name": "Serbia",
+      "aliases": [
+        "serbia",
+        "srbija"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee",
+        "balkans"
+      ],
+      "timezone": "Europe/Belgrade",
+      "cities": [
+        {
+          "id": "belgrade",
+          "name": "Beograd",
+          "aliases": [
+            "belgrade",
+            "beograd"
+          ]
+        },
+        {
+          "id": "novi-sad",
+          "name": "Novi Sad",
+          "aliases": [
+            "novi sad"
+          ]
+        },
+        {
+          "id": "nis",
+          "name": "Niš",
+          "aliases": [
+            "nis",
+            "niš"
+          ]
+        },
+        {
+          "id": "kragujevac",
+          "name": "Kragujevac",
+          "aliases": [
+            "kragujevac"
+          ]
+        }
+      ],
+      "eu_member": false
+    },
+    {
+      "code": "HR",
+      "name": "Croatia",
+      "aliases": [
+        "croatia",
+        "hrvatska"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee",
+        "balkans"
+      ],
+      "timezone": "Europe/Zagreb",
+      "cities": [
+        {
+          "id": "zagreb",
+          "name": "Zagreb",
+          "aliases": [
+            "zagreb"
+          ]
+        },
+        {
+          "id": "split",
+          "name": "Split",
+          "aliases": [
+            "split"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "BA",
+      "name": "Bosnia and Herzegovina",
+      "aliases": [
+        "bosnia",
+        "bosnia and herzegovina",
+        "bih"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee",
+        "balkans"
+      ],
+      "timezone": "Europe/Sarajevo",
+      "cities": [
+        {
+          "id": "sarajevo",
+          "name": "Sarajevo",
+          "aliases": [
+            "sarajevo"
+          ]
+        },
+        {
+          "id": "banja-luka",
+          "name": "Banja Luka",
+          "aliases": [
+            "banja luka",
+            "banjaluka"
+          ]
+        }
+      ],
+      "eu_member": false
+    },
+    {
+      "code": "ME",
+      "name": "Montenegro",
+      "aliases": [
+        "montenegro",
+        "crna gora"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee",
+        "balkans"
+      ],
+      "timezone": "Europe/Podgorica",
+      "cities": [
+        {
+          "id": "podgorica",
+          "name": "Podgorica",
+          "aliases": [
+            "podgorica"
+          ]
+        }
+      ],
+      "eu_member": false
+    },
+    {
+      "code": "MK",
+      "name": "North Macedonia",
+      "aliases": [
+        "north macedonia",
+        "macedonia"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee",
+        "balkans"
+      ],
+      "timezone": "Europe/Skopje",
+      "cities": [
+        {
+          "id": "skopje",
+          "name": "Skopje",
+          "aliases": [
+            "skopje"
+          ]
+        }
+      ],
+      "eu_member": false
+    },
+    {
+      "code": "SI",
+      "name": "Slovenia",
+      "aliases": [
+        "slovenia",
+        "slovenija"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee"
+      ],
+      "timezone": "Europe/Ljubljana",
+      "cities": [
+        {
+          "id": "ljubljana",
+          "name": "Ljubljana",
+          "aliases": [
+            "ljubljana"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "HU",
+      "name": "Hungary",
+      "aliases": [
+        "hungary"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee"
+      ],
+      "timezone": "Europe/Budapest",
+      "cities": [
+        {
+          "id": "budapest",
+          "name": "Budapest",
+          "aliases": [
+            "budapest"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "RO",
+      "name": "Romania",
+      "aliases": [
+        "romania"
+      ],
+      "regions": [
+        "europe",
+        "cee"
+      ],
+      "timezone": "Europe/Bucharest",
+      "cities": [
+        {
+          "id": "bucharest",
+          "name": "Bucharest",
+          "aliases": [
+            "bucharest",
+            "bucuresti"
+          ]
+        },
+        {
+          "id": "cluj",
+          "name": "Cluj-Napoca",
+          "aliases": [
+            "cluj",
+            "cluj-napoca"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "BG",
+      "name": "Bulgaria",
+      "aliases": [
+        "bulgaria"
+      ],
+      "regions": [
+        "europe",
+        "cee"
+      ],
+      "timezone": "Europe/Sofia",
+      "cities": [
+        {
+          "id": "sofia",
+          "name": "Sofia",
+          "aliases": [
+            "sofia"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "PL",
+      "name": "Poland",
+      "aliases": [
+        "poland",
+        "polska"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee"
+      ],
+      "timezone": "Europe/Warsaw",
+      "cities": [
+        {
+          "id": "warsaw",
+          "name": "Warsaw",
+          "aliases": [
+            "warsaw",
+            "warszawa"
+          ]
+        },
+        {
+          "id": "krakow",
+          "name": "Kraków",
+          "aliases": [
+            "krakow",
+            "kraków",
+            "cracow"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "CZ",
+      "name": "Czechia",
+      "aliases": [
+        "czechia",
+        "czech republic"
+      ],
+      "regions": [
+        "europe",
+        "cet",
+        "cee"
+      ],
+      "timezone": "Europe/Prague",
+      "cities": [
+        {
+          "id": "prague",
+          "name": "Prague",
+          "aliases": [
+            "prague",
+            "praha"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "AT",
+      "name": "Austria",
+      "aliases": [
+        "austria",
+        "österreich"
+      ],
+      "regions": [
+        "europe",
+        "cet"
+      ],
+      "timezone": "Europe/Vienna",
+      "cities": [
+        {
+          "id": "vienna",
+          "name": "Vienna",
+          "aliases": [
+            "vienna",
+            "wien"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "DE",
+      "name": "Germany",
+      "aliases": [
+        "germany",
+        "deutschland"
+      ],
+      "regions": [
+        "europe",
+        "cet"
+      ],
+      "timezone": "Europe/Berlin",
+      "cities": [
+        {
+          "id": "berlin",
+          "name": "Berlin",
+          "aliases": [
+            "berlin"
+          ]
+        },
+        {
+          "id": "munich",
+          "name": "Munich",
+          "aliases": [
+            "munich",
+            "münchen"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "NL",
+      "name": "Netherlands",
+      "aliases": [
+        "netherlands",
+        "holland"
+      ],
+      "regions": [
+        "europe",
+        "cet"
+      ],
+      "timezone": "Europe/Amsterdam",
+      "cities": [
+        {
+          "id": "amsterdam",
+          "name": "Amsterdam",
+          "aliases": [
+            "amsterdam"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "ES",
+      "name": "Spain",
+      "aliases": [
+        "spain",
+        "españa"
+      ],
+      "regions": [
+        "europe",
+        "cet"
+      ],
+      "timezone": "Europe/Madrid",
+      "cities": [
+        {
+          "id": "madrid",
+          "name": "Madrid",
+          "aliases": [
+            "madrid"
+          ]
+        },
+        {
+          "id": "barcelona",
+          "name": "Barcelona",
+          "aliases": [
+            "barcelona"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "PT",
+      "name": "Portugal",
+      "aliases": [
+        "portugal"
+      ],
+      "regions": [
+        "europe",
+        "uk_ie"
+      ],
+      "timezone": "Europe/Lisbon",
+      "cities": [
+        {
+          "id": "lisbon",
+          "name": "Lisbon",
+          "aliases": [
+            "lisbon",
+            "lisboa"
+          ]
+        }
+      ],
+      "eu_member": true
+    },
+    {
+      "code": "GB",
+      "name": "United Kingdom",
+      "aliases": [
+        "united kingdom",
+        "uk",
+        "england"
+      ],
+      "regions": [
+        "europe",
+        "uk_ie"
+      ],
+      "timezone": "Europe/London",
+      "cities": [
+        {
+          "id": "london",
+          "name": "London",
+          "aliases": [
+            "london"
+          ]
+        }
+      ],
+      "eu_member": false
+    },
+    {
+      "code": "US",
+      "name": "United States",
+      "aliases": [
+        "united states",
+        "usa",
+        "us"
+      ],
+      "regions": [
+        "north_america"
+      ],
+      "timezone": "America/New_York",
+      "cities": [
+        {
+          "id": "new-york",
+          "name": "New York",
+          "aliases": [
+            "new york",
+            "nyc"
+          ]
+        },
+        {
+          "id": "san-francisco",
+          "name": "San Francisco",
+          "aliases": [
+            "san francisco",
+            "sf bay area"
+          ]
+        }
+      ],
+      "eu_member": false
+    }
+  ],
+  "eu_words": [
+    "eu",
+    "european union"
+  ]
+}

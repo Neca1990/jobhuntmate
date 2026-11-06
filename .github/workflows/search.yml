@@ -1,0 +1,47 @@
+name: search
+# Started by the scheduler (cron/worker.js) when some user is due. The hourly schedule is a fallback in case the
+# scheduler is down; when nobody is in their active hours the run ends in seconds.
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.trigger || 'fallback' }}
+on:
+  workflow_dispatch:
+    inputs:
+      trigger:
+        description: who started it
+        default: manual
+      full_scan:
+        description: go through all postings
+        default: "false"
+      force:
+        description: search now, even outside the users' active hours
+        default: "false"
+  schedule:
+    - cron: "41 * * * *"
+concurrency:
+  group: search
+  cancel-in-progress: false
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Private part (job sites)
+        uses: actions/checkout@v4
+        with:
+          repository: Neca1990/jobhuntmate-sources
+          ssh-key: ${{ secrets.SOURCES_DEPLOY_KEY }}
+          path: engine/plugins
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Search for everyone
+        env:
+          ENGINE_KEY: ${{ secrets.ENGINE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          FULL_SCAN: ${{ inputs.full_scan }}
+          FORCE_SEARCH: ${{ inputs.force }}
+        run: |
+          export SITE_URL=$(python -c "import json; print(json.load(open('config/brand.json'))['site_url'])")
+          python -m engine.run

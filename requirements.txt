@@ -1,0 +1,2 @@
+# the engine uses only the Python standard library; tests need pytest
+pytest==8.3.3

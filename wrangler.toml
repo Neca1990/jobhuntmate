@@ -1,0 +1,15 @@
+# Cloudflare Pages project: the site (site/) and its API (functions/).
+name = "jobhuntmate"
+pages_build_output_dir = "build"  # site/ plus version stamps, made by tools/build-site.mjs
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jobhuntmate"
+database_id = "f0d5cf63-a11e-4b42-a10a-20d10a74a80b"
+migrations_dir = "db/migrations"
+
+# the search scheduler (cron/), so the admin page can start a search right away
+[[services]]
+binding = "SCHEDULER"
+service = "jobhuntmate-scheduler"
