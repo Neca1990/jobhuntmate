@@ -36,7 +36,7 @@ const errText = (code) => t(`err.${code}`) === `err.${code}` ? t("err.default") 
 // ---------- language and static texts ----------
 function paintStatic() {
   document.documentElement.lang = lang();
-  $$("[data-t]").forEach((n) => { n.textContent = t(n.dataset.t); });
+  $$("[data-t]").forEach((n) => { n.textContent = t(n.dataset.t, { brand: state.brand.name || "" }); });
   $$("[data-brand-name]").forEach((n) => { n.textContent = state.brand.name || ""; });
   const tag = state.brand.tagline || "";
   $$("[data-brand-tagline]").forEach((n) => { n.textContent = typeof tag === "string" ? tag : (tag[lang()] || tag.en || ""); });
@@ -144,6 +144,8 @@ async function boot() {
     showLogin("start");
     return;
   }
+  // nothing is shown, and the search doesn't run, before the privacy notice is accepted (again, when it changes)
+  if (state.me.consent_version !== state.me.privacy_version) { showConsent(); return; }
   // the job sites are listed only for signed-in users
   state.options.sources = (await api("GET", "/api/sources").catch(() => ({ sources: [] }))).sources;
   state.settings = structuredClone(state.me.settings || {});
@@ -163,6 +165,25 @@ async function boot() {
   renderApp();
   if (state.restored) showRestored();
   else if (!(state.settings.searches || []).length) openOnboarding();
+}
+
+function showConsent() {
+  $("#loader").classList.add("hidden");
+  $("#login").classList.add("hidden");
+  $("#app").classList.add("hidden");
+  $("#consent").classList.remove("hidden");
+  paintStatic();
+  const check = $("#consent-check"), accept = $("#consent-accept");
+  check.onchange = () => { accept.disabled = !check.checked; };
+  accept.onclick = async () => {
+    accept.disabled = true;
+    try {
+      await api("POST", "/api/me/consent", { version: state.me.privacy_version });
+      $("#consent").classList.add("hidden");
+      boot();
+    } catch (e) { $("#consent-error").textContent = errText(e.code); accept.disabled = false; }
+  };
+  $("#consent-out").onclick = () => $("#sign-out").click();
 }
 
 function renderApp() {
@@ -1199,7 +1220,70 @@ function renderAccount() {
       el("strong", { text: i.provider === "telegram" ? "Telegram" : i.provider }), el("span", { class: "grow", text: i.label }),
       el("span", { class: "muted", text: (i.created_at || "").slice(0, 10) })]))),
     el("p", { class: "muted", text: t("acc.more_soon") }),
-  ]), filesCard());
+  ]), filesCard(), privacyCard());
+}
+
+// ---- the person's own data: the notice, a copy of everything, deleting the account ----
+function privacyCard() {
+  const word = t("acc.delete_word");
+  const typed = el("input", { type: "text", placeholder: word, autocomplete: "off" });
+  const status = el("p", { role: "status" });
+  const del = el("button", { class: "danger", text: t("acc.delete_go"), disabled: true, onclick: async () => {
+    del.disabled = true;
+    try {
+      await api("DELETE", "/api/me", { confirm: "DELETE" });
+      clearDraft();
+      location.replace("/");
+    } catch (e) { status.textContent = errText(e.code); status.className = "error"; del.disabled = false; }
+  } });
+  typed.oninput = () => { del.disabled = typed.value.trim().toUpperCase() !== word.toUpperCase(); };
+  const exp = el("button", { class: "ghost", text: t("acc.export"), onclick: () => exportData(exp, status) });
+  return el("div", { class: "card" }, [el("h2", { text: t("acc.privacy") }),
+    el("p", {}, [el("a", { href: "/privacy.html", target: "_blank", rel: "noopener", text: t("privacy_link") }),
+      el("span", { class: "muted", text: ` · ${t("acc.accepted", { d: (state.me.consent_at || "").slice(0, 10) })}` })]),
+    el("p", { class: "muted", text: t("acc.export_note") }), exp, status,
+    el("details", { class: "danger-zone" }, [el("summary", { class: "muted", text: t("acc.delete") }),
+      el("p", { text: t("acc.delete_note") }),
+      el("label", {}, [t("acc.delete_type", { word }), typed]), del])]);
+}
+async function exportData(btn, status) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = t("acc.exporting");
+  try {
+    const data = await api("GET", "/api/me/export");
+    const { zip } = await import("./zip.js?v=__V__");
+    const sr = lang() === "sr";
+    const n = sr ? { readme: "procitaj.txt", account: "nalog.json", settings: "podesavanja.json", apps: "prijave.json", agencies: "agencije.json",
+      requests: "zahtevi.json", search: "pretraga.json", files: "fajlovi" }
+      : { readme: "readme.txt", account: "account.json", settings: "settings.json", apps: "applications.json", agencies: "agencies.json",
+        requests: "requests.json", search: "search.json", files: "files" };
+    const pretty = (x) => JSON.stringify(x, null, 2);
+    const files = [
+      { name: n.readme, data: t("acc.readme", { at: data.exported_at.slice(0, 16).replace("T", " "), brand: state.brand.name || "", ...n }) },
+      { name: n.account, data: pretty(data.account) }, { name: n.settings, data: pretty(data.settings) },
+      { name: n.apps, data: pretty(data.applications) }, { name: n.agencies, data: pretty(data.agencies) },
+      { name: n.requests, data: pretty(data.requests) },
+      { name: n.search, data: pretty({ search_everything: data.search_everything, ...data.search_state }) },
+    ];
+    const used = new Set();
+    for (const f of data.files) {
+      const r = await fetch(`/api/files/${encodeURIComponent(f.id)}`, { credentials: "same-origin" });
+      if (!r.ok) continue;
+      let name = `${n.files}/${f.created_at.slice(0, 10)} ${f.name}`.replace(/[\\:*?"<>|]/g, "_");
+      while (used.has(name)) name = name.replace(/(\.\w+)?$/, "-1$1");
+      used.add(name);
+      files.push({ name, data: new Uint8Array(await r.arrayBuffer()) });
+    }
+    const a = el("a", { href: URL.createObjectURL(zip(files)), download: `${(state.brand.name || "data").toLowerCase().replace(/\W+/g, "-")}-${sr ? "podaci" : "data"}-${data.exported_at.slice(0, 10)}.zip` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    status.textContent = t("acc.exported", { n: data.files.length });
+    status.className = "ok";
+  } catch (e) { status.textContent = errText(e.code); status.className = "error"; }
+  btn.textContent = label;
+  btn.disabled = false;
 }
 
 // ---------- admin ----------

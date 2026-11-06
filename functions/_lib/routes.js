@@ -3,6 +3,7 @@ import * as auth from "./auth/index.js";
 import { PROVIDERS } from "./auth/index.js";
 import { routes as agencyRoutes } from "./agencies.js";
 import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js";
+import { PRIVACY_VERSION, routes as privacyRoutes } from "./privacy.js";
 import { cardAction, postingsClosed, relabel } from "./cards.js";
 import { isDue } from "./schedule.js";
 import { endSession, requireUser } from "./session.js";
@@ -91,7 +92,9 @@ on("POST", "/api/telegram", async ({ request, env, db }) => {
 on("GET", "/api/me", async ({ request, db }) => {
   const user = await requireUser(request, db);
   const ids = await db.prepare("SELECT provider, label, created_at FROM identities WHERE user_id = ?").bind(user.id).all();
-  return json({ id: user.id, role: user.role, created_at: user.created_at, settings: user.settings, identities: ids.results });
+  const consent = await db.prepare("SELECT consent_version, consent_at FROM users WHERE id = ?").bind(user.id).first();
+  return json({ id: user.id, role: user.role, created_at: user.created_at, settings: user.settings, identities: ids.results,
+    privacy_version: PRIVACY_VERSION, consent_version: consent?.consent_version || "", consent_at: consent?.consent_at || "" });
 });
 
 on("PUT", "/api/me/settings", async ({ request, db }) => {
@@ -212,7 +215,8 @@ function requireEngine(request, env) {
 
 on("GET", "/api/engine/users", async ({ request, env, db }) => {
   requireEngine(request, env);
-  const rows = await db.prepare("SELECT id, settings FROM users WHERE active = 1").all();
+  // only people who accepted the privacy notice (any version: a newer one is asked for on the site, the search goes on)
+  const rows = await db.prepare("SELECT id, settings FROM users WHERE active = 1 AND consent_at != ''").all();
   return json({ users: rows.results.map((r) => ({ ...parse(r.settings, {}), id: r.id })) });
 });
 
@@ -306,7 +310,7 @@ on("PUT", "/api/engine/companies", async ({ request, env, db }) => {
 // asked by the scheduler every few minutes: should the search run now?
 on("GET", "/api/engine/due", async ({ request, env, db }) => {
   requireEngine(request, env);
-  const users = (await db.prepare("SELECT settings FROM users WHERE active = 1").all()).results.map((r) => parse(r.settings, {}));
+  const users = (await db.prepare("SELECT settings FROM users WHERE active = 1 AND consent_at != ''").all()).results.map((r) => parse(r.settings, {}));
   const state = parse((await db.prepare("SELECT value FROM global_state WHERE key = 'state'").first())?.value, {});
   const due = isDue(users, state.last_run, new Date());
   // someone asked for "search everything" and no search has picked it up yet
@@ -361,3 +365,4 @@ on("PUT", "/api/engine/run", async ({ request, env, db }) => {
 
 agencyRoutes(on, { requireUser, requireEngine });
 poolRoutes(on, { requireUser, requireEngine, requireAdmin });
+privacyRoutes(on, { requireUser });

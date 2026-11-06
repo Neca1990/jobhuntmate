@@ -174,3 +174,13 @@ td.files button { padding: 3px 8px; }
 .followup textarea { width: 100%; }
 tr.detail td > .followup:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
 p.small { font-size: .85rem; margin-top: 4px; }
+.privacy { max-width: 820px; }
+.privacy h2 { margin-top: 22px; font-size: 1.05rem; }
+.privacy li { margin: 6px 0; line-height: 1.5; }
+.privacy p { line-height: 1.55; }
+.consent-points li { margin: 6px 0; }
+.danger-zone { margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.danger-zone[open] summary { color: var(--danger, #d14343); }
+#consent label.inline { display: flex; gap: 10px; align-items: flex-start; justify-content: flex-start; text-align: left; margin: 14px 0; }
+#consent label.inline input { width: auto; margin-top: 3px; flex: none; }
+.privacy { margin: 0 auto; padding: 16px; }

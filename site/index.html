@@ -35,6 +35,24 @@
         <button id="restart" class="ghost wide" data-t="restart"></button>
       </section>
       <p class="error" id="login-error" role="alert"></p>
+      <p class="muted small"><a href="/privacy.html" target="_blank" rel="noopener" data-t="privacy_link"></a></p>
+    </div>
+  </div>
+
+  <div id="consent" class="center hidden">
+    <div class="login">
+      <h1 data-t="consent.title"></h1>
+      <p data-t="consent.intro"></p>
+      <ul class="muted consent-points">
+        <li data-t="consent.p1"></li>
+        <li data-t="consent.p2"></li>
+        <li data-t="consent.p3"></li>
+      </ul>
+      <p><a href="/privacy.html" target="_blank" rel="noopener" data-t="consent.read"></a></p>
+      <label class="inline"><input type="checkbox" id="consent-check"> <span data-t="consent.check"></span></label>
+      <button id="consent-accept" class="wide" data-t="consent.accept" disabled></button>
+      <button id="consent-out" class="ghost wide" data-t="sign_out"></button>
+      <p class="error" id="consent-error" role="alert"></p>
     </div>
   </div>
 

@@ -144,6 +144,7 @@ def test_a_user_without_channels_still_gets_postings_on_the_dashboard(user, fake
 def test_the_name_is_written_only_in_brand_json():
     """Renaming the product must be a one-file change."""
     offenders = [str(p.relative_to(ROOT)) for p in list((ROOT / "engine").rglob("*.py")) + list((ROOT / "site").glob("*.html"))
+                                                   + list((ROOT / "site").glob("*.js"))
                  if name().lower() in p.read_text().lower()]
     assert offenders == []
 

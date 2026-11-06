@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { PRIVACY_VERSION } from "../functions/_lib/privacy.js";
 import { beforeEach, test } from "node:test";
 
 import { handle } from "../functions/_lib/routes.js";
@@ -32,12 +33,15 @@ const webhook = (from, text, chatType = "private") => call("POST", "/api/telegra
 });
 
 // the whole Telegram sign-in: start on the site, Start in the bot, type the code
-async function signIn(telegramId, invite = "") {
+async function signIn(telegramId, invite = "", consent = true) {
   const start = await (await call("POST", "/api/auth/telegram/start", { body: { invite } })).json();
   await webhook(telegramId, `/start ${start.token}`);
   const code = sent.at(-1).body.text.match(/<code>(\d{6})<\/code>/)?.[1];
   const res = await call("POST", "/api/auth/verify", { body: { token: start.token, code } });
-  return { res, cookie: (res.headers.get("set-cookie") || "").split(";")[0], start, code };
+  const cookie = (res.headers.get("set-cookie") || "").split(";")[0];
+  // like on the site: the privacy notice is accepted right after the first sign-in
+  if (res.status === 200 && consent) await call("POST", "/api/me/consent", { cookie, body: { version: PRIVACY_VERSION } });
+  return { res, cookie, start, code };
 }
 
 test("the owner signs in with a Telegram code and becomes admin", async () => {
@@ -474,4 +478,59 @@ test("the posting archive: only new postings are written, read in pages, old one
   const admin = await (await call("GET", "/api/admin/pool", { cookie })).json();
   assert.equal(admin.settings.pool_days, 21);
   env.DB.fakeSize = undefined;
+});
+
+test("privacy: the search works only for people who accepted the notice; export has their data and only theirs", async () => {
+  const { cookie: admin } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { code } = await (await call("POST", "/api/admin/invites", { cookie: admin, body: { note: "friend" } })).json();
+  const friend = await signIn(2002, code, false);
+  let me = await (await call("GET", "/api/me", { cookie: friend.cookie })).json();
+  assert.equal(me.consent_at, "");
+  assert.equal(me.privacy_version, PRIVACY_VERSION);
+  let { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  assert.equal(users.length, 1); // only the owner
+  assert.equal((await call("POST", "/api/me/consent", { cookie: friend.cookie, body: { version: "1999-01-01" } })).status, 400);
+  await call("POST", "/api/me/consent", { cookie: friend.cookie, body: { version: PRIVACY_VERSION } });
+  me = await (await call("GET", "/api/me", { cookie: friend.cookie })).json();
+  assert.equal(me.consent_version, PRIVACY_VERSION);
+  ({ users } = await (await call("GET", "/api/engine/users", { headers: engine })).json());
+  assert.equal(users.length, 2);
+
+  await call("PUT", "/api/me/settings", { cookie: friend.cookie, body: { language: "sr", searches: [{ id: "s1" }] } });
+  await call("PUT", `/api/engine/users/${me.id}/applications`, { headers: engine, body: [{ id: "j1", status: "pending", title: "QA", company: "Acme" }] });
+  await call("PUT", `/api/engine/users/${users.find((u) => u.id !== me.id).id}/applications`, { headers: engine,
+    body: [{ id: "j2", status: "pending", title: "Owner's job", company: "Other" }] });
+  const up = await call("POST", "/api/files", { cookie: friend.cookie, body: { name: "cv.pdf", data: Buffer.from("%PDF friend").toString("base64") } });
+  assert.equal(up.status, 200);
+  const data = await (await call("GET", "/api/me/export", { cookie: friend.cookie })).json();
+  assert.equal(data.account.id, me.id);
+  assert.equal(data.account.identities[0].subject, "2002");
+  assert.equal(data.settings.language, "sr");
+  assert.deepEqual(data.applications.map((a) => a.title), ["QA"]);
+  assert.deepEqual(data.files.map((f) => f.name), ["cv.pdf"]);
+  assert.equal(JSON.stringify(data).includes("Owner's job"), false);
+  assert.equal(JSON.stringify(data).includes("id_hash"), false);
+});
+
+test("privacy: deleting the account removes everything tied to it; the last admin can't", async () => {
+  const { cookie: admin } = await signIn(OWNER);
+  const { code } = await (await call("POST", "/api/admin/invites", { cookie: admin, body: { note: "friend" } })).json();
+  const friend = await signIn(2002, code);
+  const me = await (await call("GET", "/api/me", { cookie: friend.cookie })).json();
+  await call("POST", "/api/files", { cookie: friend.cookie, body: { name: "cv.pdf", data: Buffer.from("%PDF").toString("base64") } });
+  await call("PUT", `/api/engine/users/${me.id}/applications`, { headers: { authorization: "Bearer engine-key" }, body: [{ id: "j1", status: "pending" }] });
+  assert.equal((await call("DELETE", "/api/me", { cookie: friend.cookie, body: {} })).status, 400); // needs the confirmation
+  const res = await call("DELETE", "/api/me", { cookie: friend.cookie, body: { confirm: "DELETE" } });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("set-cookie"), /Max-Age=0/);
+  assert.equal((await call("GET", "/api/me", { cookie: friend.cookie })).status, 401);
+  for (const table of ["users", "identities", "sessions", "applications", "files", "user_files", "user_agencies", "requests", "search_all"]) {
+    const col = table === "users" ? "id" : "user_id";
+    assert.equal(env.DB.raw.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${col} = ?`).get(me.id).n, 0, table);
+  }
+  assert.equal(env.DB.raw.prepare("SELECT used_by FROM invites WHERE code = ?").get(code).used_by, "deleted");
+  const last = await call("DELETE", "/api/me", { cookie: admin, body: { confirm: "DELETE" } });
+  assert.equal(last.status, 400);
+  assert.equal((await last.json()).error, "last_admin");
 });

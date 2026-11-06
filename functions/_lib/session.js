@@ -39,5 +39,6 @@ export async function requireUser(request, db) {
 export async function endSession(request, db) {
   const value = cookieValue(request);
   if (value) await db.prepare("DELETE FROM sessions WHERE id_hash = ?").bind(await sha256(value)).run();
-  return `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+  return clearCookie();
 }
+export const clearCookie = () => `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
