@@ -78,6 +78,7 @@ on("POST", "/api/telegram", async ({ request, env, db }) => {
   }
   const update = await readBody(request);
   const msg = update.message;
+  await PROVIDERS.telegram.relabel(db, msg?.from || update.callback_query?.from);
   const start = msg?.text?.match(/^\/start\s+([A-Za-z0-9_-]{20,64})$/);
   if (start && msg.chat?.type === "private") {
     await PROVIDERS.telegram.onStart(env, db, msg, start[1], auth.reach);
@@ -97,6 +98,15 @@ on("GET", "/api/me", async ({ request, db }) => {
   const consent = await db.prepare("SELECT consent_version, consent_at FROM users WHERE id = ?").bind(user.id).first();
   return json({ id: user.id, role: user.role, created_at: user.created_at, settings: user.settings, identities: ids.results,
     privacy_version: PRIVACY_VERSION, consent_version: consent?.consent_version || "", consent_at: consent?.consent_at || "" });
+});
+
+// the sign-in names as they are now (opening the Account page asks Telegram)
+on("POST", "/api/me/identities/refresh", async ({ request, env, db }) => {
+  const user = await requireUser(request, db);
+  const ids = (await db.prepare("SELECT provider, subject FROM identities WHERE user_id = ?").bind(user.id).all()).results;
+  for (const i of ids) if (i.provider === "telegram" && env.TELEGRAM_BOT_TOKEN) await PROVIDERS.telegram.refreshLabel(env, db, i.subject);
+  const now = await db.prepare("SELECT provider, label, created_at FROM identities WHERE user_id = ?").bind(user.id).all();
+  return json({ identities: now.results });
 });
 
 on("PUT", "/api/me/settings", async ({ request, db }) => {

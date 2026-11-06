@@ -1216,6 +1216,15 @@ function ownAgencyForm() {
 function renderAccount() {
   const me = state.me;
   if (!state.files) loadFiles().then(renderAccount).catch(() => {});
+  // a username changed in Telegram shows here as soon as the page is opened
+  if (Date.now() - (state.idsAt || 0) > 10000) {
+    state.idsAt = Date.now();
+    api("POST", "/api/me/identities/refresh").then(({ identities }) => {
+      if (JSON.stringify(identities) === JSON.stringify(me.identities)) return;
+      me.identities = identities;
+      if (state.tab === "account") renderAccount();
+    }).catch(() => {});
+  }
   $("#tab-account").replaceChildren(el("div", { class: "card" }, [
     el("label", {}, [t("acc.name"), el("input", { type: "text", value: state.settings.name || "", oninput: (e) => {
       state.settings.name = e.target.value; markDirty(); $("#savebar").classList.remove("hidden");

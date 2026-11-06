@@ -18,6 +18,19 @@ export const isOwner = (env, subject) => Boolean(env.OWNER_TELEGRAM_ID) && Strin
 
 const label = (from) => (from.username ? `@${from.username}` : [from.first_name, from.last_name].filter(Boolean).join(" "));
 
+// Telegram doesn't tell bots when someone changes their username: the name shown on the account follows what any
+// message or tap from them says, and what Telegram answers when the person opens their account page
+export async function relabel(db, from) {
+  if (!from?.id) return;
+  await db.prepare("UPDATE identities SET label = ? WHERE provider = 'telegram' AND subject = ? AND label != ?")
+    .bind(label(from), String(from.id), label(from)).run();
+}
+export async function refreshLabel(env, db, subject) {
+  const r = await call(env, "getChat", { chat_id: subject }).catch(() => null);
+  const chat = r?.ok ? r.result : null;
+  if (chat?.id) await relabel(db, { id: chat.id, username: chat.username, first_name: chat.first_name, last_name: chat.last_name });
+}
+
 // the account's Telegram chat, for notifications; kept in the user's settings
 export async function remember(db, userId, contact) {
   if (!contact?.chat_id) return;

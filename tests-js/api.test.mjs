@@ -552,3 +552,21 @@ test("signing in by sending the site's 6-digit code to the bot (for apps that do
   await tap(OWNER, choices.find((d) => d.endsWith(`:${start.match}`)));
   assert.equal((await call("POST", "/api/auth/poll", { body: { token: start.token } })).status, 200);
 });
+
+test("a username changed in Telegram follows on the account: from any tap or message, and when the Account page asks", async () => {
+  const { cookie } = await signIn(OWNER);
+  const label = async () => (await (await call("GET", "/api/me", { cookie })).json()).identities[0].label;
+  assert.equal(await label(), `@user${OWNER}`);
+  await call("POST", "/api/telegram", { headers: { "x-telegram-bot-api-secret-token": SECRET },
+    body: { update_id: 7, callback_query: { id: "q", from: { id: OWNER, username: "renamed" }, data: "noop" } } });
+  assert.equal(await label(), "@renamed");
+  // the person removed their username: Telegram's answer has only the name
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url, body: JSON.parse(init.body) });
+    const result = url.endsWith("/getChat") ? { id: OWNER, first_name: "Ana", last_name: "Anić", type: "private" } : { message_id: 1 };
+    return new Response(JSON.stringify({ ok: true, result }));
+  };
+  const r = await (await call("POST", "/api/me/identities/refresh", { cookie })).json();
+  assert.equal(r.identities[0].label, "Ana Anić");
+  assert.equal(await label(), "Ana Anić");
+});
