@@ -206,7 +206,7 @@ p.small { font-size: .85rem; margin-top: 4px; }
   background: rgba(255,255,255,.95); color: #1b1f24; box-shadow: 0 10px 30px rgba(20,20,60,.25);
   display: flex; flex-direction: column; gap: 2px; animation: rise 12s ease-in-out infinite; }
 .jobcard b { font-size: .92rem; }
-.jobcard span { font-size: .8rem; color: #667085; }
+.jobcard > span { font-size: .8rem; color: #667085; }
 .jobcard em { font-style: normal; color: #2e7d32; font-weight: 600; }
 .c2 { animation-delay: 3s; } .c3 { animation-delay: 6s; } .c4 { animation-delay: 9s; }
 @keyframes rise {
