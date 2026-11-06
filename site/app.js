@@ -619,6 +619,7 @@ async function loadSearchAll(box, posted = null) {
 
 $("#save").addEventListener("click", async () => {
   const st = state.settings;
+  if (!(st.name || "").trim()) return paintSaveStatus(t("acc.need_name"), "error");
   const empty = st.searches.find((s) => !s.specializations.length || !s.seniority.length || !s.locations.length);
   if (empty) return paintSaveStatus(t("s.need_one", { name: empty.name }), "error");
   paintSaveStatus(t("saving"));
@@ -637,15 +638,19 @@ $("#save").addEventListener("click", async () => {
 });
 
 // ---------- onboarding ----------
-function openOnboarding() {
-  const st = state.settings;
+// demo: the admin's preview of what a new person sees – the same steps, nothing saved
+function openOnboarding(demo = false) {
+  const st = demo ? structuredClone(state.settings) : state.settings;
+  if (demo) st.name = "";
   const s = newSearch();
   let step = 1;
   const box = $("#onboarding");
   const draw = () => {
     const f = family(s.family);
     const body = {
-      1: [el("h2", { text: t("ob.where") }), el("div", { class: "grid" }, [
+      1: [el("label", {}, [t("ob.name"), el("input", { type: "text", maxlength: 80, value: st.name || "", placeholder: t("ob.name_ph"),
+          oninput: (e) => { st.name = e.target.value; } })]),
+        el("h2", { text: t("ob.where") }), el("div", { class: "grid" }, [
         el("label", {}, [t("language"), selectEl(LANGS.map((l) => [l, l === "sr" ? "Srpski" : "English"]), lang(), (v) => { changeLang(v); draw(); })]),
         el("label", {}, [t("country"), selectEl(opt().countries.map((c) => [c.code, c.name]), st.country || "RS", (v) => { st.country = v; s.locations = ["remote"]; draw(); })]),
       ])],
@@ -667,11 +672,17 @@ function openOnboarding() {
       el("div", { class: "actions" }, [
         step > 1 ? el("button", { class: "ghost", text: t("back"), onclick: () => { step--; draw(); } }) : el("span"),
         el("button", { text: step < 3 ? t("next") : t("finish"), onclick: async () => {
+          if (step === 1 && !(st.name || "").trim()) {
+            $("#ob-error").textContent = t("ob.need_name");
+            return;
+          }
           if (step === 2 && (!s.specializations.length || !s.seniority.length || !s.locations.length)) {
             $("#ob-error").textContent = t("s.need_one", { name: s.name });
             return;
           }
           if (step < 3) { step++; draw(); return; }
+          if (demo) { box.classList.add("hidden"); alert(t("ob.demo_done")); return; }
+          st.name = st.name.trim();
           st.searches = [s];
           st.schedule = { interval_hours: 2, active_from: "08:00", active_to: "22:00" };
           st.notify_via = ["telegram"];
@@ -1430,10 +1441,12 @@ async function renderAdmin() {
     el("p", { class: "muted", text: t("ad.pool_note") })]);
   const runBtn = el("button", { text: t("ad.run_now"), onclick: () => start(false) });
   const fullBtn = el("button", { class: "ghost", text: t("ad.run_full"), onclick: () => start(true) });
+  const demoBtn = el("button", { class: "ghost small", text: t("ad.demo_onboarding"), onclick: () => openOnboarding(true) });
   followRun(runStatus, [runBtn, fullBtn]);
   root.replaceChildren(
     el("div", { class: "card" }, [el("div", { class: "row" }, [el("h2", { text: t("ad.search") }), el("div", { class: "row" }, [fullBtn, runBtn])]),
-      el("p", { class: "muted", text: t("ad.run_note") }), el("p", { class: "muted", text: t("ad.full_note") }), runStatus]),
+      el("p", { class: "muted", text: t("ad.run_note") }), el("p", { class: "muted", text: t("ad.full_note") }), runStatus,
+      el("div", { class: "actions" }, [demoBtn, el("span", { class: "muted small", text: t("ad.demo_note") })])]),
     el("div", { class: "card" }, [
       el("div", { class: "grid two" }, [
         el("label", {}, [t("ad.registration"), selectEl([["invite_only", t("ad.invite_only")], ["open", t("ad.open")]], settings.registration,
