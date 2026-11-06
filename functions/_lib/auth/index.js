@@ -35,22 +35,34 @@ export async function start(env, db, providerId, { invite = "", username = "" } 
     .bind(nowIso(now - 600_000)).first();
   if (recent.n >= MAX_STARTS_PER_10_MIN) throw new HttpError(429, "too_many_requests");
   const token = randomToken();
-  const req = { token_hash: await sha256(token), rid: randomToken(12), match: twoDigits(), provider: providerId };
-  await db.prepare("INSERT INTO login_requests (token_hash, rid, match, provider, created_at, expires_at, invite) " +
-    "VALUES (?, ?, ?, ?, ?, ?, ?)").bind(req.token_hash, req.rid, req.match, providerId, nowIso(now),
-    nowIso(now + LOGIN_MINUTES * 60_000), String(invite).slice(0, 64)).run();
+  const req = { token_hash: await sha256(token), rid: randomToken(12), match: twoDigits(), provider: providerId,
+    chat_code: await freeChatCode(db) };
+  await db.prepare("INSERT INTO login_requests (token_hash, rid, match, provider, created_at, expires_at, invite, chat_code) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(req.token_hash, req.rid, req.match, providerId, nowIso(now),
+    nowIso(now + LOGIN_MINUTES * 60_000), String(invite).slice(0, 64), req.chat_code).run();
   // a known account can be reached directly; the answer is the same whether it exists or not
   if (username && PROVIDERS[providerId].push) {
     await PROVIDERS[providerId].push(env, db, req, username, { reach, maxPerHour: MAX_PUSHES_PER_HOUR });
   }
-  return { token, match: req.match, expires_in: LOGIN_MINUTES * 60, ...PROVIDERS[providerId].instructions(env, token) };
+  return { token, match: req.match, chat_code: req.chat_code, expires_in: LOGIN_MINUTES * 60,
+    ...PROVIDERS[providerId].instructions(env, token) };
+}
+
+// six digits no other open sign-in uses
+async function freeChatCode(db) {
+  for (;;) {
+    const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 900000 + 100000);
+    if (!(await db.prepare("SELECT 1 FROM login_requests WHERE chat_code = ?").bind(code).first())) return code;
+  }
 }
 
 // the provider has found the person: remember who, and return what to send them (numbers to pick from and a code)
 export async function reach(db, where, subject, label, contact) {
-  const [col, value] = where.token ? ["token_hash", await sha256(where.token)] : ["rid", where.rid];
-  const req = await db.prepare(`SELECT * FROM login_requests WHERE ${col} = ? AND expires_at > ? AND approved_at = ''`)
-    .bind(value, nowIso()).first();
+  const [col, value] = where.token ? ["token_hash", await sha256(where.token)] : where.chat_code ? ["chat_code", where.chat_code]
+    : ["rid", where.rid];
+  // a code sent to the bot only claims a sign-in nobody has answered yet
+  const req = await db.prepare(`SELECT * FROM login_requests WHERE ${col} = ? AND expires_at > ? AND approved_at = ''` +
+    (where.chat_code ? " AND subject = ''" : "")).bind(value, nowIso()).first();
   if (!req) return null;
   const code = randomCode();
   await db.prepare("UPDATE login_requests SET subject = ?, label = ?, contact = ?, code_hash = ?, attempts = 0 WHERE token_hash = ?")

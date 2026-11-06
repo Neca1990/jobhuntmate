@@ -286,3 +286,7 @@ button.go:not(:disabled):hover { transform: translateY(-1px); }
 .login-panel .lang { float: right; }
 .login-panel input { width: 100%; }
 .login-panel .wide { display: block; width: 100%; margin-top: 12px; padding: 12px 14px; }
+.chat-code { margin: 14px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--chip); }
+.chat-code p { margin: 0 0 6px; }
+.chat-code .row { justify-content: flex-start; gap: 12px; }
+.code-big { font-size: 1.6rem; font-weight: 700; letter-spacing: .12em; color: var(--accent); font-variant-numeric: tabular-nums; }

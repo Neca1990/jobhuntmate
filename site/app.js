@@ -75,6 +75,8 @@ $("#start").addEventListener("click", async () => {
     const r = await api("POST", "/api/auth/telegram/start", { invite, username });
     Object.assign(state.login, { token: r.token, pushed: Boolean(username) });
     $("#match").textContent = r.match;
+    $("#chat-code").textContent = r.chat_code ? `${r.chat_code.slice(0, 3)} ${r.chat_code.slice(3)}` : "";
+    $("#chat-code-copy").onclick = (e) => navigator.clipboard.writeText(r.chat_code).then(() => { e.target.textContent = "✅"; });
     $("#where").textContent = username ? t("where_pushed") : t("where_link");
     $("#bot-link").href = r.link;
     $("#bot-link").dataset.app = r.app_link;

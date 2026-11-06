@@ -81,6 +81,8 @@ on("POST", "/api/telegram", async ({ request, env, db }) => {
   const start = msg?.text?.match(/^\/start\s+([A-Za-z0-9_-]{20,64})$/);
   if (start && msg.chat?.type === "private") {
     await PROVIDERS.telegram.onStart(env, db, msg, start[1], auth.reach);
+  } else if (msg?.text && msg.chat?.type === "private" && !msg.reply_to_message) {
+    await PROVIDERS.telegram.onText(env, db, msg, auth.reach);
   }
   const query = update.callback_query;
   if (query?.data?.startsWith("l:")) await PROVIDERS.telegram.onButton(env, db, query, auth.approve);

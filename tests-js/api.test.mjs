@@ -534,3 +534,21 @@ test("privacy: deleting the account removes everything tied to it; the last admi
   assert.equal(last.status, 400);
   assert.equal((await last.json()).error, "last_admin");
 });
+
+test("signing in by sending the site's 6-digit code to the bot (for apps that don't send /start)", async () => {
+  const start = await (await call("POST", "/api/auth/telegram/start", { body: {} })).json();
+  assert.match(start.chat_code, /^\d{6}$/);
+  sent = [];
+  await webhook(OWNER, "/start");
+  assert.match(sent.at(-1).body.text, /6-digit code/);
+  await webhook(OWNER, "000000");
+  assert.match(sent.at(-1).body.text, /no sign-in with this code/);
+  await webhook(OWNER, `${start.chat_code.slice(0, 3)} ${start.chat_code.slice(3)}`); // with the space the site shows
+  const choices = buttons(sent.at(-1));
+  assert.equal(choices.length, 5);
+  // the same code can't be used again by someone else to grab this sign-in
+  await webhook(2002, start.chat_code);
+  assert.match(sent.at(-1).body.text, /no sign-in with this code/);
+  await tap(OWNER, choices.find((d) => d.endsWith(`:${start.match}`)));
+  assert.equal((await call("POST", "/api/auth/poll", { body: { token: start.token } })).status, 200);
+});

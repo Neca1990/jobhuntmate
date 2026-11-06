@@ -44,6 +44,22 @@ export async function onStart(env, db, message, token, reach) {
     `⌛ ${brand.name}: this sign-in has expired – start again on the site. / Prijava je istekla – kreni ponovo na sajtu.`);
 }
 
+// the six-digit code from the site, sent as a plain message (some apps open an existing chat without "/start <token>");
+// a plain "/start" or anything else gets a short how-to
+export async function onText(env, db, message, reach) {
+  const code = String(message.text || "").replace(/\s+/g, "");
+  if (/^\d{6}$/.test(code)) {
+    const offer = await reach(db, { chat_code: code }, message.from.id, label(message.from), { chat_id: message.chat.id });
+    if (offer) return deliver(env, message.chat.id, offer);
+    return sendMessage(env, message.chat.id, `⌛ ${brand.name}: no sign-in with this code – it expired or was used. Start again on the site.\n` +
+      "Nema prijave sa ovim kodom – istekla je ili je iskorišćena. Kreni ponovo na sajtu.");
+  }
+  if (/^\/start\b/.test(message.text || "")) {
+    return sendMessage(env, message.chat.id, `👋 ${brand.name}\n\nTo sign in, start on the site and send me the 6-digit code it shows.\n` +
+      `Za prijavu kreni na sajtu i pošalji mi šestocifreni kod koji ti prikaže.\n\n${brand.site_url}`);
+  }
+}
+
 // "@username" typed on the site by someone who already has an account
 export async function push(env, db, req, username, { reach, maxPerHour }) {
   const wanted = `@${String(username).replace(/^@/, "").trim()}`.toLowerCase();

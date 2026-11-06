@@ -5,7 +5,8 @@ const TEXT = {
   en: {
     // sign in
     intro: "Sign in with Telegram: our bot asks you to tap a number.", start: "Sign in with Telegram",
-    username_label: "Signed in here before? Optionally type your Telegram username (e.g. @ana) and press Enter – the bot sends you the number by itself, no need to open it. New here? Just tap the button.",
+    chat_code_label: "Nothing happened in Telegram? Send the bot this code as a message:",
+    username_label: "Signed in here before? Optionally type your Telegram username (e.g. @ana) and press Enter – the bot sends you the number by itself, no need to open it. Works only if you have a Telegram username (Settings → Username). New here? Just tap the button.",
     tap_number: "In Telegram, tap this number:", open_bot: "Open the bot in Telegram",
     where_link: "Open the bot and press Start – it shows a few numbers.",
     where_pushed: "If your account exists, the bot has just written to you. No message? Open the bot below.",
@@ -162,7 +163,8 @@ const TEXT = {
   },
   sr: {
     intro: "Prijava preko Telegrama: bot te pita da dodirneš broj.", start: "Prijavi se preko Telegrama",
-    username_label: "Prijavljivao si se ranije? Možeš da upišeš svoje Telegram korisničko ime (npr. @ana) i pritisneš Enter – bot će ti sam poslati broj, ne moraš da ga otvaraš. Prvi put si ovde? Samo klikni dugme.",
+    chat_code_label: "Ništa se nije desilo u Telegramu? Pošalji botu ovaj kod kao poruku:",
+    username_label: "Prijavljivao si se ranije? Možeš da upišeš svoje Telegram korisničko ime (npr. @ana) i pritisneš Enter – bot će ti sam poslati broj, ne moraš da ga otvaraš. Radi samo ako u Telegramu imaš korisničko ime (Podešavanja → Korisničko ime). Prvi put si ovde? Samo klikni dugme.",
     tap_number: "U Telegramu dodirni ovaj broj:", open_bot: "Otvori bota u Telegramu",
     where_link: "Otvori bota i pritisni Start – pokazaće ti nekoliko brojeva.",
     where_pushed: "Ako nalog postoji, bot ti je upravo pisao. Nema poruke? Otvori bota ispod.",
