@@ -154,3 +154,11 @@ a.button:hover { text-decoration: none; }
 .counter { font-size: .78rem; }
 .change { margin: 8px 0; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; }
 .final { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.actions .push-right { margin-left: auto; }
+.add-own { margin-bottom: 14px; }
+.history { margin-top: 8px; }
+.history .search { margin-top: 8px; }
+/* the preview scrolls on its own; the page behind it stays put */
+.preview-pages { overscroll-behavior: contain; }
+body:has(dialog[open]) { overflow: hidden; }

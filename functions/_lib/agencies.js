@@ -86,6 +86,13 @@ export function routes(on, { requireUser, requireEngine }) {
     if (params.id.startsWith("own:")) for (const k of OWN_KEYS) if (k in body) data[k] = String(body[k] || "").slice(0, 300);
     if (data.status && !STATUSES.includes(data.status)) throw new HttpError(400, "bad_status");
     if (body.status === "sent" && !data.sent_on) data.sent_on = nowIso().slice(0, 10);
+    if (["new", "waiting", "ready"].includes(body.status)) delete data.sent_on; // "I've sent it" taken back
+    if (body.status === "suggested" && (data.mail || data.cv_file_id)) {
+      // back to the start: the finished CV and email are kept as history, not thrown away
+      data.history = [...(data.history || []), { at: nowIso(), mail: data.mail || null, cv_file_id: data.cv_file_id || "",
+        sent_on: data.sent_on || "", note: data.note || "", changes: data.changes || [] }].slice(-10);
+      for (const k of ["mail", "cv_file_id", "sent_on", "changes", "change", "note", "file_id", "ready_at", "requested_at"]) delete data[k];
+    }
     await saveMine(db, user.id, params.id, data);
     return json({ agency: data });
   });

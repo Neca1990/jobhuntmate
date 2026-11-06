@@ -750,7 +750,7 @@ function filesCard() {
 // ---------- agencies (headhunters) ----------
 // a shared catalog of researched agencies, plus each user's own dealings with them and agencies they add
 const AG_SECTIONS = [
-  ["suggested", ["suggested"]], ["prep", ["new", "waiting", "ready"]], ["sent", ["sent", "replied", "interview"]],
+  ["suggested", ["suggested"]], ["new", ["new"]], ["prep", ["waiting", "ready"]], ["sent", ["sent", "replied", "interview"]],
   ["done", ["no_reply", "rejected", "dismissed"]],
 ];
 const AG_STATUSES = ["suggested", "new", "waiting", "ready", "sent", "replied", "interview", "no_reply", "rejected", "dismissed"];
@@ -834,8 +834,9 @@ function drawAgencies() {
   $("#tab-agencies").replaceChildren(
     el("div", { class: "card" }, [el("h2", { text: t("tab.agencies") }), el("p", { class: "muted", text: t("ag.intro") }), tabs,
       note && el("p", { class: note.cls, text: note.text }),
-      ...(items.length ? items.map(agencyCard) : [el("p", { class: "muted", text: t(`ag.empty.${state.agTab}`) })])]),
-    ownAgencyForm(),
+      state.agTab === "new" && (state.agAdding ? ownAgencyForm() : el("div", { class: "actions" }, [
+        el("button", { class: "ghost", text: t("ag.add_own"), onclick: () => { state.agAdding = true; drawAgencies(); } })])),
+      ...(items.length ? items.map(agencyCard) : [el("p", { class: "muted", text: t(`ag.empty.${state.agTab}`) })])].filter(Boolean)),
   );
 }
 // "site.com" for each source; the same site twice gets its page too ("site.com/contact"), so links stay distinct
@@ -913,29 +914,43 @@ function prepBlock(a) {
     el("label", {}, [t("ag.note"), note]),
     el("label", {}, [t("ag.cv_from"), el("div", { class: "row", style: "justify-content:flex-start" }, [pick, upload,
       el("button", { class: "ghost small", type: "button", text: t("f.add"), onclick: () => upload.click() })])]),
-    el("div", { class: "row", style: "justify-content:flex-start" }, [
+    el("div", { class: "actions" }, [
       el("button", { text: viaSite ? t("ag.make_cv") : (a.mail ? t("ag.remake") : t("ag.make_mail")), onclick: async () => {
         try {
           await api("POST", "/api/requests", { kind: "agency_mail", target: a.id, note: note.value, file_id: pick.value });
           agencyNote(t("ag.requested"));
+          state.agTab = "prep";
           await renderAgencies();
         } catch (e) { agencyNote(errText(e.code), "error"); drawAgencies(); }
       } }),
       a.prijava_link && el("a", { class: "button ghost", href: a.prijava_link, target: "_blank", rel: "noopener noreferrer", text: t("ag.apply_site") }),
+      a.own && el("button", { class: "danger push-right", text: t("s.remove"), onclick: () => removeOwn(a) }),
     ].filter(Boolean)),
   ]);
+}
+async function removeOwn(a) {
+  if (!confirm(t("ag.confirm_remove"))) return;
+  await api("DELETE", `/api/agencies/${encodeURIComponent(a.id)}`);
+  delete state.agencies.mine[a.id];
+  drawAgencies();
 }
 function agencyCard(a) {
   const status = selectEl(AG_STATUSES.map((x) => [x, t(`ag.st.${x}`)]), a.status, (v) => saveAgency(a.id, { status: v }), { class: "status" });
   const parts = [el("div", { class: "row" }, [el("h3", { text: a.name }), status])];
-  if (a.own) parts.push(el("p", { class: "muted", text: [a.email, a.site, a.contact].filter(Boolean).join(" · ") }));
+  if (a.own) {
+    parts.push(el("div", { class: "ag-summary" }, [
+      a.email && el("p", {}, [el("strong", { text: `${t("ag.email")}: ` }), a.email]),
+      a.contact && el("p", {}, [el("strong", { text: `${t("ag.contact")}: ` }), a.contact]),
+      a.site && el("p", {}, [el("strong", { text: `${t("ag.site")}: ` }), el("a", { href: a.site, target: "_blank", rel: "noopener noreferrer", text: a.site })]),
+    ].filter(Boolean)));
+  }
   if (a.sent_on) parts.push(el("p", { class: "muted", text: `📨 ${t("ag.sent_on")} ${a.sent_on} (${t("ag.days_ago", { n: daysAgo(a.sent_on) })})` }));
   if (a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS) parts.push(el("p", { class: "warn", text: t("ag.followup_due", { n: daysAgo(a.sent_on) }) }));
   const info = !a.own && summaryOf(a);
   if (info) parts.push(a.status === "suggested" ? info : el("details", {}, [el("summary", { class: "muted", text: t("ag.about") }), info]));
   if (a.status === "suggested") {
     parts.push(el("div", { class: "row", style: "justify-content:flex-start" }, [
-      el("button", { text: t("ag.want"), onclick: () => { agencyNote(t("ag.moved")); state.agTab = "prep"; saveAgency(a.id, { status: "new" }); } }),
+      el("button", { text: t("ag.want"), onclick: () => { agencyNote(t("ag.moved")); state.agTab = "new"; saveAgency(a.id, { status: "new" }); } }),
       el("button", { class: "ghost", text: t("ag.not_interested"), onclick: () => { agencyNote(t("ag.dismissed_note", { name: a.name })); saveAgency(a.id, { status: "dismissed" }); } }),
       a.sajt && el("a", { class: "button ghost", href: a.sajt, target: "_blank", rel: "noopener noreferrer", text: t("ag.site") })].filter(Boolean)));
   } else if (a.status === "dismissed" && !a.own) {
@@ -961,26 +976,36 @@ function agencyCard(a) {
       el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
       a.prijava_link && el("a", { class: "button ghost small", href: a.prijava_link, target: "_blank", rel: "noopener noreferrer", text: t("ag.apply_site") })].filter(Boolean)));
   }
-  if (a.own) parts.push(el("button", { class: "danger small", text: t("s.remove"), onclick: async () => {
-    if (!confirm(t("ag.confirm_remove"))) return;
-    await api("DELETE", `/api/agencies/${encodeURIComponent(a.id)}`); delete state.agencies.mine[a.id]; drawAgencies();
-  } }));
+  if (a.own && a.status !== "new") parts.push(el("div", { class: "actions" }, [
+    el("button", { class: "danger small push-right", text: t("s.remove"), onclick: () => removeOwn(a) })]));
+  if ((a.history || []).length) parts.push(historyBlock(a));
   return el("div", { class: `search ag-card ${a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS ? "changed" : ""}` }, parts);
+}
+function historyBlock(a) {
+  return el("details", { class: "history" }, [el("summary", { class: "muted", text: t("ag.history", { n: a.history.length }) }),
+    ...[...a.history].reverse().map((h) => el("div", { class: "search" }, [
+      el("p", { class: "muted", text: [h.at.slice(0, 10), h.sent_on ? `${t("ag.sent_on")} ${h.sent_on}` : t("ag.not_sent")].join(" · ") }),
+      h.mail && el("p", {}, [el("strong", { text: `${t("ag.subject")}: ` }), h.mail.subject]),
+      h.mail && el("pre", { class: "copytext", text: h.mail.body }),
+      h.cv_file_id && el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(h.cv_file_id).catch(() => {}) }),
+    ].filter(Boolean)))]);
 }
 function ownAgencyForm() {
   const f = { name: el("input", { type: "text" }), email: el("input", { type: "email" }), site: el("input", { type: "url", placeholder: "https://" }),
     contact: el("input", { type: "text" }), note: el("textarea", { rows: 2 }) };
-  return el("div", { class: "card" }, [el("h2", { text: t("ag.add_own") }), el("div", { class: "grid two" }, [
+  return el("div", { class: "search add-own" }, [el("h3", { text: t("ag.add_own") }), el("div", { class: "grid two" }, [
     el("label", {}, [t("ag.name"), f.name]), el("label", {}, [t("ag.email"), f.email]),
     el("label", {}, [t("ag.site"), f.site]), el("label", {}, [t("ag.contact"), f.contact])]),
     el("label", {}, [t("ag.note"), f.note]),
-    el("button", { text: t("ag.add"), onclick: async () => {
-      if (!f.name.value.trim()) return;
-      const r = await api("POST", "/api/agencies", { name: f.name.value, email: f.email.value, site: f.site.value, contact: f.contact.value, note: f.note.value });
-      state.agencies.mine[r.id] = r.agency;
-      state.agTab = "prep";
-      drawAgencies();
-    } })]);
+    el("div", { class: "actions" }, [
+      el("button", { text: t("ag.add"), onclick: async () => {
+        if (!f.name.value.trim()) { f.name.focus(); return; }
+        const r = await api("POST", "/api/agencies", { name: f.name.value, email: f.email.value, site: f.site.value, contact: f.contact.value, note: f.note.value });
+        state.agencies.mine[r.id] = r.agency;
+        state.agAdding = false;
+        drawAgencies();
+      } }),
+      el("button", { class: "ghost", text: t("cancel"), onclick: () => { state.agAdding = false; drawAgencies(); } })])]);
 }
 
 // ---------- account ----------
