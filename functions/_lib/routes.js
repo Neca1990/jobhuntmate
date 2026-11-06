@@ -271,7 +271,11 @@ on("PUT", "/api/engine/users/:id/:name", async ({ request, env, db, params }) =>
       if (!row) continue;
       const app = parse(row.data, {});
       app.open_checked_at = String(c.open_checked_at || now);
-      if (c.closed_on && !app.closed_on) { app.closed_on = String(c.closed_on).slice(0, 10); closed.push(app); }
+      if (c.closed_on && !app.closed_on) {
+        app.closed_on = String(c.closed_on).slice(0, 10);
+        if (["pending", "approved", "ready"].includes(app.status)) { app.closed_from = app.status; app.status = "closed"; }
+        closed.push(app);
+      }
       await db.prepare("UPDATE applications SET data = ?, updated_at = ? WHERE user_id = ? AND id = ?")
         .bind(JSON.stringify(app), c.closed_on ? now : row.updated_at || now, params.id, String(c.id)).run();
     }

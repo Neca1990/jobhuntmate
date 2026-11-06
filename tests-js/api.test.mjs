@@ -434,6 +434,8 @@ test("postings found taken down: marked, Telegram label, a message for approved 
   assert.equal((await r.json()).closed, 2);
   const apps = (await (await call("GET", "/api/applications", { cookie })).json()).applications;
   assert.equal(apps.find((a) => a.id === "gone1").closed_on, "2026-11-06");
+  assert.equal(apps.find((a) => a.id === "gone1").status, "closed"); // goes to the archive tab
+  assert.equal(apps.find((a) => a.id === "gone2").status, "closed");
   assert.equal(apps.find((a) => a.id === "up1").closed_on, undefined);
   assert.equal(apps.find((a) => a.id === "up1").open_checked_at, "2026-11-06T09:00:00Z");
   const labels = sent.filter((m) => m.url.endsWith("/editMessageReplyMarkup")).map((m) => m.body.reply_markup.inline_keyboard[0][0].text);

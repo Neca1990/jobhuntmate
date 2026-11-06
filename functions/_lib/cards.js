@@ -15,7 +15,7 @@ const LABELS = {
 };
 
 // the buttons under a posting's message, for its status: Approve/Skip while pending, otherwise a label
-const STILL_WAITING = ["pending", "approved", "ready"];
+const STILL_WAITING = ["pending", "approved", "ready", "closed"];
 function markup(app, words) {
   if (app.closed_on && STILL_WAITING.includes(app.status)) return { inline_keyboard: [[{ text: words.closed, callback_data: "noop" }]] };
   if (app.status === "pending") {
@@ -39,7 +39,7 @@ export async function postingsClosed(env, apps, settings) {
   for (const app of apps) {
     await relabel(env, app, settings.language);
     const chat = settings.channels?.telegram?.chat_id;
-    if (chat && ["approved", "ready"].includes(app.status)) {
+    if (chat && ["approved", "ready"].includes(app.closed_from || app.status)) {
       const what = `„${app.title} – ${app.company}”`.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]);
       await sendMessage(env, chat, words.closed_msg.replace("{what}", what)).catch(() => {});
     }

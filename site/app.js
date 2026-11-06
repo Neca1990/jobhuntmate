@@ -157,7 +157,9 @@ $("#sign-out").addEventListener("click", async () => {
 
 // ---------- the app ----------
 const TABS = ["searches", "applications", "agencies", "account", "admin"];
-const STATUSES = ["pending", "approved", "ready", "sent", "test", "interview", "offer", "rejected", "skipped", "no_reply"];
+const STATUSES = ["pending", "approved", "ready", "sent", "test", "interview", "offer", "rejected", "skipped", "no_reply", "closed"];
+// finished applications move to the archive tab (rejected, skipped, no reply, posting taken down)
+const ARCHIVED = new Set(["rejected", "skipped", "no_reply", "closed"]);
 const DEALBREAKERS = ["language", "residency", "citizenship", "clearance"];
 const INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
 // a dropdown of times (every half hour) looks and works the same in every browser, unlike <input type=time>
@@ -690,8 +692,16 @@ async function renderApplications() {
 }
 function drawApplications(filter = state.appsFilter || "") {
   state.appsFilter = filter;
+  state.appsTab ||= "active";
   const root = $("#tab-applications");
-  const rows = state.apps.filter((a) => !filter || a.status === filter);
+  const inTab = (a) => ARCHIVED.has(a.status) === (state.appsTab === "archive");
+  const tabStatuses = STATUSES.filter((s) => ARCHIVED.has(s) === (state.appsTab === "archive"));
+  if (filter && !tabStatuses.includes(filter)) filter = state.appsFilter = "";
+  const rows = state.apps.filter(inTab).filter((a) => !filter || a.status === filter);
+  const count = (archive) => state.apps.filter((a) => ARCHIVED.has(a.status) === archive).length;
+  const tabs = el("div", { class: "subtabs" }, [["active", false], ["archive", true]].map(([id, archive]) =>
+    el("button", { class: `subtab ${state.appsTab === id ? "active" : ""}`, text: `${t(`a.tab.${id}`)} (${count(archive)})`,
+      onclick: () => { state.appsTab = id; state.appsFilter = ""; state.appOpen = null; drawApplications(""); } })));
   const statusSelect = (a) => selectEl(STATUSES.map((s) => [s, t(`st.${s}`)]), a.status, async (v) => {
     try { Object.assign(a, (await api("PATCH", `/api/applications/${encodeURIComponent(a.id)}`, { status: v })).application); }
     catch (e) { alertRow(e); }
@@ -709,7 +719,8 @@ function drawApplications(filter = state.appsFilter || "") {
   const head = ["a.date", "a.company", "a.title", "a.source", "a.score", "a.status", "a.cv", "a.deadline", "a.notes"].map((k) => el("th", { text: t(k) }));
   root.replaceChildren(el("div", { class: "card" }, [
     el("div", { class: "row" }, [el("h2", { text: t("tab.applications") }),
-      selectEl([["", t("a.all")], ...STATUSES.map((s) => [s, t(`st.${s}`)])], filter, (v) => drawApplications(v))]),
+      selectEl([["", t("a.all")], ...tabStatuses.map((s) => [s, t(`st.${s}`)])], filter, (v) => drawApplications(v))]),
+    tabs,
     el("p", { class: "error", id: "apps-error" }),
     rows.length ? el("div", { class: "table-wrap" }, [el("table", {}, [el("thead", {}, [el("tr", {}, head)]),
       el("tbody", {}, rows.flatMap((a) => [el("tr", {}, [
@@ -719,14 +730,14 @@ function drawApplications(filter = state.appsFilter || "") {
         el("td", {}, [statusSelect(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { text: a.deadline || "" }), noteCell(a),
       ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 9 }, [
         a.status === "sent" && appFollowup(a), (a.status !== "sent" || a.cv_state === "ready") && cvDetail(a)].filter(Boolean))])].filter(Boolean)))])])
-      : el("p", { class: "muted", text: t("a.empty") }),
+      : el("p", { class: "muted", text: t(state.appsTab === "archive" ? "a.empty_archive" : "a.empty") }),
   ]));
 }
 // ---- a tailored CV (and cover letter) for one posting ----
 const NO_CV = new Set(["pending", "skipped", "rejected", "no_reply"]);
 const toggleOpen = (a) => { state.appOpen = state.appOpen === a.id ? null : a.id; drawApplications(); };
 function cvCell(a) {
-  if (a.closed_on && ["pending", "approved", "ready"].includes(a.status)) {
+  if (a.status === "closed" || (a.closed_on && ["pending", "approved", "ready"].includes(a.status))) {
     return [el("span", { class: "warn", title: t("a.closed_hint", { d: a.closed_on }), text: t("a.closed") })];
   }
   if (a.cv_state === "waiting") return [el("span", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), ` ${t("a.cv_waiting")}`])];
