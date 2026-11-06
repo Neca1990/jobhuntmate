@@ -1356,7 +1356,7 @@ async function renderAdmin() {
   const copy = async (text, btn) => {
     try { await navigator.clipboard.writeText(text); btn.textContent = t("ad.copied"); } catch { prompt("", text); }
   };
-  const note = el("input", { type: "text", placeholder: t("ad.note") });
+  const note = el("input", { type: "text", placeholder: t("ad.note_ph") });
   const runStatus = el("div", { role: "status", class: "run-status" });
   const start = async (full) => {
     runBtn.disabled = fullBtn.disabled = true;
@@ -1407,14 +1407,17 @@ async function renderAdmin() {
     ]),
     poolCard,
     el("div", { class: "card" }, [
-      el("div", { class: "row" }, [el("h2", { text: t("ad.invites") }), el("div", { class: "row" }, [note,
-        el("button", { class: "ghost small", text: t("ad.new_invite"), onclick: async () => {
+      el("h2", { text: t("ad.invites") }),
+      el("p", { class: "muted", text: t("ad.invite_how") }),
+      el("div", { class: "invite-form" }, [el("label", { class: "grow" }, [t("ad.note"), note]),
+        el("button", { text: t("ad.new_invite"), onclick: async () => {
           await api("POST", "/api/admin/invites", { note: note.value }); renderAdmin();
-        } })])]),
+        } })]),
       el("div", { class: "list" }, invites.map((i) => {
         const link = `${location.origin}/?invite=${i.code}`;
         return el("div", { class: "item" }, [
-          el("span", { class: "grow" }, [el("strong", { text: i.note || "—" }), " ", el("span", { class: "muted", text: i.used_by ? t("ad.used") : t("ad.unused") })]),
+          el("span", { class: "grow" }, [el("strong", { text: i.note || "—" }), " ",
+            el("span", { class: "muted", text: [i.used_by ? t("ad.used") : t("ad.unused"), (i.created_at || "").slice(0, 10)].filter(Boolean).join(" · ") })]),
           !i.used_by && el("button", { class: "ghost small", text: t("ad.copy"), onclick: (e) => copy(link, e.target) }),
           !i.used_by && el("button", { class: "danger small", text: t("ad.delete"), onclick: async () => {
             await api("DELETE", `/api/admin/invites/${encodeURIComponent(i.code)}`); renderAdmin();

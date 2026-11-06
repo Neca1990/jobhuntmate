@@ -296,3 +296,6 @@ button.go:not(:disabled):hover { transform: translateY(-1px); }
 .who .avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; flex: none;
   background: linear-gradient(135deg, #3b5bdb, #7048e8); }
 .who-name { font-size: 1.25rem; font-weight: 700; }
+.invite-form { display: flex; gap: 10px; align-items: flex-end; margin: 6px 0 14px; flex-wrap: wrap; }
+.invite-form label { margin: 0; min-width: 240px; flex: 1; }
+.invite-form input { width: 100%; }
