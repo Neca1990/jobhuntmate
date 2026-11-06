@@ -39,20 +39,48 @@
     </div>
   </div>
 
-  <div id="consent" class="center hidden">
-    <div class="login">
-      <h1 data-t="consent.title"></h1>
-      <p data-t="consent.intro"></p>
-      <ul class="muted consent-points">
-        <li data-t="consent.p1"></li>
-        <li data-t="consent.p2"></li>
-        <li data-t="consent.p3"></li>
-      </ul>
-      <p><a href="/privacy.html" target="_blank" rel="noopener" data-t="consent.read"></a></p>
-      <label class="inline"><input type="checkbox" id="consent-check"> <span data-t="consent.check"></span></label>
-      <button id="consent-accept" class="wide" data-t="consent.accept" disabled></button>
-      <button id="consent-out" class="ghost wide" data-t="sign_out"></button>
-      <p class="error" id="consent-error" role="alert"></p>
+  <div id="consent" class="consent hidden">
+    <!-- the left side is decoration: postings found, scored and sent, with the data staying private -->
+    <div class="consent-hero" aria-hidden="true">
+      <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+      <div class="radar">
+        <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+        <span class="sweep"></span>
+        <span class="lens">🔎</span>
+      </div>
+      <div class="flow">
+        <div class="jobcard c1"><b>QA Engineer</b><span>Remote · <em>8/10</em></span></div>
+        <div class="jobcard c2"><b>Data Analyst</b><span>Hybrid · <em>7/10</em></span></div>
+        <div class="jobcard c3"><b>Frontend Developer</b><span>EU · <em>9/10</em></span></div>
+        <div class="jobcard c4"><b>DevOps Engineer</b><span>Remote · <em>8/10</em></span></div>
+      </div>
+      <div class="hero-text">
+        <h2 data-brand-name></h2>
+        <p data-t="consent.hero"></p>
+      </div>
+      <div class="shield"><span class="lock">🔒</span> <span data-t="consent.badge"></span></div>
+    </div>
+
+    <div class="consent-side">
+      <div class="consent-panel">
+        <ol class="steps">
+          <li class="done"><span class="dot">✓</span><span data-t="consent.step1"></span></li>
+          <li class="now"><span class="dot">2</span><span data-t="consent.step2"></span></li>
+          <li><span class="dot">3</span><span data-t="consent.step3"></span></li>
+        </ol>
+        <h1 data-t="consent.title"></h1>
+        <p data-t="consent.intro"></p>
+        <div class="points">
+          <div class="point"><span class="icon">🛡️</span><span data-t="consent.p1"></span></div>
+          <div class="point"><span class="icon">🚫</span><span data-t="consent.p2"></span></div>
+          <div class="point"><span class="icon">🗂️</span><span data-t="consent.p3"></span></div>
+        </div>
+        <p><a href="/privacy.html" target="_blank" rel="noopener" data-t="consent.read"></a> ↗</p>
+        <label class="agree"><input type="checkbox" id="consent-check"><span class="box"></span><span data-t="consent.check"></span></label>
+        <button id="consent-accept" class="wide go" data-t="consent.accept" disabled></button>
+        <button id="consent-out" class="ghost wide" data-t="sign_out"></button>
+        <p class="error" id="consent-error" role="alert"></p>
+      </div>
     </div>
   </div>
 

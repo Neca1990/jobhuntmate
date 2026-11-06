@@ -96,6 +96,8 @@ const TEXT = {
     // applications
     "a.closed": "⚠️ Taken down", "a.closed_hint": "The site took this posting down (found {d}) – applying makes no sense any more.",
     "privacy_link": "Privacy notice",
+    "consent.hero": "New IT jobs found, scored and sent to you – while you do something better.",
+    "consent.badge": "Your data stays yours", "consent.step1": "Sign in", "consent.step2": "Privacy", "consent.step3": "Your searches",
     "consent.title": "Before you start", "consent.intro": "{brand} keeps your settings, the postings it sends you and the CVs you upload, so it can search for you.",
     "consent.p1": "Your CV never goes to free AI services – only the text of job postings does.",
     "consent.p2": "No ads, no tracking. Your data isn't sold or shared for anything else.",
@@ -243,6 +245,8 @@ const TEXT = {
     "n.telegram_off": "Nije povezan.", "n.email": "Mejl", "n.email_soon": "Uskoro.",
     "a.closed": "⚠️ Oglas skinut", "a.closed_hint": "Sajt je skinuo ovaj oglas (primećeno {d}) – prijava više nema smisla.",
     "privacy_link": "Obaveštenje o privatnosti",
+    "consent.hero": "Novi IT oglasi pronađeni, ocenjeni i poslati tebi – dok ti radiš nešto pametnije.",
+    "consent.badge": "Tvoji podaci ostaju tvoji", "consent.step1": "Prijava", "consent.step2": "Privatnost", "consent.step3": "Tvoje pretrage",
     "consent.title": "Pre nego što počneš", "consent.intro": "{brand} čuva tvoja podešavanja, oglase koje ti šalje i CV-ove koje postaviš, da bi mogao da traži posao za tebe.",
     "consent.p1": "Tvoj CV nikad ne ide besplatnim AI servisima – samo tekst oglasa.",
     "consent.p2": "Nema reklama ni praćenja. Tvoji podaci se ne prodaju i ne dele ni za šta drugo.",

@@ -179,7 +179,11 @@ function showConsent() {
     accept.disabled = true;
     try {
       await api("POST", "/api/me/consent", { version: state.me.privacy_version });
+      const panel = $(".consent-panel");
+      panel.classList.add("leaving");
+      await new Promise((done) => setTimeout(done, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420));
       $("#consent").classList.add("hidden");
+      panel.classList.remove("leaving");
       boot();
     } catch (e) { $("#consent-error").textContent = errText(e.code); accept.disabled = false; }
   };
@@ -522,11 +526,7 @@ function renderProfileAndRules(...before) {
     ...DEALBREAKERS.map((k) => track(el("label", { class: "inline", style: "justify-content:space-between" }, [t(`db.${k}`),
       selectEl([["drop", t("s.drop")], ["warn", t("s.warn")]], st.dealbreakers[k] || "drop", (v) => { st.dealbreakers[k] = v; markDirty(); })]),
       (src) => src.dealbreakers[k] || "drop"))]);
-  const tg = st.channels?.telegram?.chat_id;
-  const notify = el("div", { class: "card" }, [el("h2", { text: t("n.title") }),
-    el("p", {}, [el("strong", { text: `${t("n.telegram")}: ` }), tg ? t("n.telegram_on") : t("n.telegram_off")]),
-    el("p", { class: "muted" }, [el("strong", { text: `${t("n.email")}: ` }), t("n.email_soon")])]);
-  $("#tab-searches").replaceChildren(searchAllCard(), ...before, profile, rules, notify);
+  $("#tab-searches").replaceChildren(searchAllCard(), ...before, profile, rules);
   paintDiffs();
 }
 
@@ -1220,7 +1220,13 @@ function renderAccount() {
       el("strong", { text: i.provider === "telegram" ? "Telegram" : i.provider }), el("span", { class: "grow", text: i.label }),
       el("span", { class: "muted", text: (i.created_at || "").slice(0, 10) })]))),
     el("p", { class: "muted", text: t("acc.more_soon") }),
-  ]), filesCard(), privacyCard());
+  ]), notifyCard(), filesCard(), privacyCard());
+}
+function notifyCard() {
+  const tg = state.settings.channels?.telegram?.chat_id;
+  return el("div", { class: "card" }, [el("h2", { text: t("n.title") }),
+    el("p", {}, [el("strong", { text: `${t("n.telegram")}: ` }), tg ? t("n.telegram_on") : t("n.telegram_off")]),
+    el("p", { class: "muted" }, [el("strong", { text: `${t("n.email")}: ` }), t("n.email_soon")])]);
 }
 
 // ---- the person's own data: the notice, a copy of everything, deleting the account ----
