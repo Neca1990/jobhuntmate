@@ -3,7 +3,8 @@ the finished CV and email. Runs on the owner's Mac with the engine key (~/.jobhu
 
   python3 tools/requests.py list
   python3 tools/requests.py file <file id> <where to save>
-  python3 tools/requests.py done <request id> --subject "…" --body email.txt [--to address] [--cv tailored.pdf]
+  python3 tools/requests.py posting <request id> <where to save>     (a job request: the posting's full text)
+  python3 tools/requests.py done <request id> [--cv tailored.pdf] [--letter letter.pdf] [--subject "…" --body email.txt [--to address]]
 """
 from __future__ import annotations
 
@@ -31,11 +32,21 @@ def call(method: str, path: str, body=None, raw: bool = False):
 
 def show(r: dict) -> str:
     a, u = r["agency"] or {}, r["user"]
-    lines = [f"{r['id']}  {r['created_at'][:16]}  for {u['name'] or u['id'][:8]} ({u['language']}, {u['country']})",
-             f"   agency: {a.get('name', '?')}  <{a.get('email') or 'no email'}>  apply: {a.get('nacin_prijave', 'email')}"]
-    for key in ("email_opis", "prijava_link", "obrazac"):
-        if a.get(key):
-            lines.append(f"   {key}: {a[key]}")
+    lines = [f"{r['id']}  {r['created_at'][:16]}  {r['kind']}  for {u['name'] or u['id'][:8]} ({u['language']}, {u['country']})"]
+    if r["kind"] == "job_cv":
+        app = r.get("application") or {}
+        lines.append(f"   job: {app.get('title', '?')} – {app.get('company', '?')}  ({app.get('source', '')})")
+        lines.append(f"   link: {app.get('company_url') or app.get('url', '')}")
+        lines.append(f"   cover letter: {'WANTED' if r.get('want_letter') else 'no'}; form says: {app.get('cover_letter') or 'unknown'}"
+                     + (f"; deadline {app['deadline']}" if app.get("deadline") else ""))
+        if app.get("form_questions"):
+            lines.append(f"   form questions: {'; '.join(app['form_questions'])}")
+        lines.append(f"   posting text: {'yes – tools/requests.py posting ' + r['id'] + ' posting.txt' if r.get('posting') else 'not stored'}")
+    else:
+        lines.append(f"   agency: {a.get('name', '?')}  <{a.get('email') or 'no email'}>  apply: {a.get('nacin_prijave', 'email')}")
+        for key in ("email_opis", "prijava_link", "obrazac"):
+            if a.get(key):
+                lines.append(f"   {key}: {a[key]}")
     if r["note"]:
         lines.append(f"   {'CHANGE REQUESTED' if r['note'].startswith('CHANGE: ') else 'note'}: {r['note'].removeprefix('CHANGE: ')}")
     if r.get("user_note") and r["note"].startswith("CHANGE: "):
@@ -54,12 +65,16 @@ def main(argv=None) -> int:
     f = sub.add_parser("file")
     f.add_argument("id")
     f.add_argument("out")
+    po = sub.add_parser("posting")
+    po.add_argument("id")
+    po.add_argument("out")
     d = sub.add_parser("done")
     d.add_argument("id")
     d.add_argument("--subject", default="")
     d.add_argument("--body", default="", help="file with the email text")
     d.add_argument("--to", default="")
     d.add_argument("--cv", default="", help="the tailored CV (PDF)")
+    d.add_argument("--letter", default="", help="the cover letter (PDF)")
     a = p.parse_args(argv)
 
     if a.cmd == "list":
@@ -70,15 +85,22 @@ def main(argv=None) -> int:
         Path(a.out).write_bytes(call("GET", f"files/{a.id}", raw=True))
         print(f"saved {a.out}")
         return 0
+    if a.cmd == "posting":
+        r = next((x for x in call("GET", "requests")["requests"] if x["id"] == a.id), None)
+        job = (r or {}).get("posting") or {}
+        Path(a.out).write_text(f"{job.get('title', '')} – {job.get('company', '')}\n{job.get('url', '')}\n\n{job.get('description_text', '')}")
+        print(f"saved {a.out}")
+        return 0
     body = {}
     if a.subject or a.body:
         body["mail"] = {"to": a.to, "subject": a.subject, "body": Path(a.body).read_text() if a.body else ""}
         if not a.to:
             waiting = {r["id"]: r for r in call("GET", "requests")["requests"]}
             body["mail"]["to"] = ((waiting.get(a.id) or {}).get("agency") or {}).get("email", "")
-    if a.cv:
-        cv = Path(a.cv).expanduser()
-        body["file"] = {"name": cv.name, "data": base64.b64encode(cv.read_bytes()).decode()}
+    for flag, key in ((a.cv, "file"), (a.letter, "letter")):
+        if flag:
+            f = Path(flag).expanduser()
+            body[key] = {"name": f.name, "data": base64.b64encode(f.read_bytes()).decode()}
     call("PUT", f"requests/{a.id}", body)
     print("done – the user sees it on the site")
     return 0
