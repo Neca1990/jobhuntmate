@@ -1,6 +1,7 @@
 // Every API route. functions/api/[[route]].js hands requests here; tests call handle() directly.
 import * as auth from "./auth/index.js";
 import { PROVIDERS } from "./auth/index.js";
+import { routes as agencyRoutes } from "./agencies.js";
 import { cardAction, relabel } from "./cards.js";
 import { isDue } from "./schedule.js";
 import { endSession, requireUser } from "./session.js";
@@ -329,3 +330,5 @@ on("PUT", "/api/engine/run", async ({ request, env, db }) => {
   await saveRun(db, await readBody(request));
   return json({ ok: true });
 });
+
+agencyRoutes(on, { requireUser, requireEngine });

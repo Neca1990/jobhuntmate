@@ -260,3 +260,51 @@ test("a status changed on the site shows on the Telegram message too", async () 
   await call("PATCH", "/api/applications/x1", { cookie, body: { note: "called them" } }); // a note alone changes nothing there
   assert.equal(sent.length, 0);
 });
+
+test("a CV kept on the account: upload, list, download (own only), delete", async () => {
+  const { cookie } = await signIn(OWNER);
+  const pdf = Buffer.from("%PDF-1.4 test cv").toString("base64");
+  const f = await (await call("POST", "/api/files", { cookie, body: { name: "cv.pdf", data: pdf } })).json();
+  assert.equal(f.size, 16);
+  assert.equal((await (await call("GET", "/api/files", { cookie })).json()).files.length, 1);
+  const dl = await call("GET", `/api/files/${f.id}`, { cookie });
+  assert.equal(dl.headers.get("content-type"), "application/pdf");
+  assert.equal(Buffer.from(await dl.arrayBuffer()).toString(), "%PDF-1.4 test cv");
+  assert.equal((await call("POST", "/api/files", { cookie, body: { name: "x.exe", data: pdf } })).status, 400);
+  await call("PUT", "/api/admin/settings", { cookie, body: { registration: "open" } });
+  const other = await signIn(6006);
+  assert.equal((await call("GET", `/api/files/${f.id}`, { cookie: other.cookie })).status, 404); // not theirs
+  await call("DELETE", `/api/files/${f.id}`, { cookie });
+  assert.equal((await (await call("GET", "/api/files", { cookie })).json()).files.length, 0);
+});
+
+test("agencies: the shared catalog, each user's own status, and a request the owner fulfils", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  await call("PUT", "/api/engine/agencies", { headers: engine, body: [{ id: "a1", name: "Agency One", email: "jobs@one.test" }] });
+  let r = await (await call("GET", "/api/agencies", { cookie })).json();
+  assert.equal(r.catalog[0].name, "Agency One");
+  assert.deepEqual(r.mine, {});
+  await call("PUT", "/api/agencies/a1", { cookie, body: { status: "new", role: "admin" } });
+  const own = await (await call("POST", "/api/agencies", { cookie, body: { name: "My Recruiter", email: "me@rec.test" } })).json();
+  const cv = await (await call("POST", "/api/files", { cookie, body: { name: "cv.pdf", data: Buffer.from("%PDF").toString("base64") } })).json();
+  await call("POST", "/api/requests", { cookie, body: { kind: "agency_mail", target: "a1", note: "remote only", file_id: cv.id } });
+  r = await (await call("GET", "/api/agencies", { cookie })).json();
+  assert.equal(r.mine.a1.status, "waiting");
+  assert.equal(r.mine.a1.role, undefined);
+  assert.equal(r.mine[own.id].name, "My Recruiter");
+  // the owner's side picks it up and sends back the CV and email
+  const { requests } = await (await call("GET", "/api/engine/requests", { headers: engine })).json();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].agency.name, "Agency One");
+  assert.equal(requests[0].file.id, cv.id);
+  await call("PUT", `/api/engine/requests/${requests[0].id}`, { headers: engine, body: {
+    mail: { to: "jobs@one.test", subject: "QA engineer", body: "Hello" },
+    file: { name: "tailored.pdf", data: Buffer.from("%PDF tailored").toString("base64") } } });
+  r = await (await call("GET", "/api/agencies", { cookie })).json();
+  assert.equal(r.mine.a1.status, "ready");
+  assert.equal(r.mine.a1.mail.subject, "QA engineer");
+  const files = (await (await call("GET", "/api/files", { cookie })).json()).files;
+  assert.equal(files.find((f) => f.id === r.mine.a1.cv_file_id).made_by, "tailored");
+  assert.equal((await (await call("GET", "/api/engine/requests", { headers: engine })).json()).requests.length, 0);
+});
