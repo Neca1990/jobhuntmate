@@ -902,7 +902,7 @@ function drawAgencies() {
   const items = groups[state.agTab];
   // something is being prepared: look again every 20 seconds while the tab is open, so it shows up by itself
   clearTimeout(state.agTimer);
-  if (all.some((a) => a.status === "waiting")) {
+  if (all.some((a) => a.status === "waiting" || a.followup_state === "waiting")) {
     state.agTimer = setTimeout(() => {
       if (state.tab === "agencies" && document.visibilityState === "visible" && !document.activeElement?.closest?.("#tab-agencies")) renderAgencies();
     }, 20000);
