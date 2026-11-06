@@ -169,3 +169,12 @@ def test_a_typed_place_brings_jobs_from_that_town(user, fake_site, monkeypatch):
         assert titles(store, "u1") == ["Manual QA Engineer", "QA Tester"]  # written with or without diacritics
     finally:
         del POSTINGS[-2:]
+
+
+def test_the_public_github_log_never_names_a_site(user, fake_site, monkeypatch, capsys):
+    monkeypatch.setitem(channels.CHANNELS, "telegram", FakeChannel())
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    engine_run.run(MemoryStore([user]), now=NOW)
+    log = capsys.readouterr().out
+    assert "[site 1] fetched" in log
+    assert "fake" not in log.lower() and "rsonly" not in log.lower() and "board" not in log.lower()

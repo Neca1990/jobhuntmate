@@ -104,6 +104,14 @@ def source_due(src: dict, users: list, last: datetime, now: datetime, force: boo
     return now - last >= timedelta(hours=hours) - TOLERANCE
 
 
+def site_label(sid: str, shared: dict) -> str:
+    """On GitHub the log is public and the sites are not: there a site is only its number in the private list."""
+    if not os.environ.get("GITHUB_ACTIONS"):
+        return sid
+    ids = [s["id"] for s in shared["sources"]["sources"]]
+    return f"site {ids.index(sid) + 1}" if sid in ids else "site ?"
+
+
 def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, full=False) -> Counter:
     """Fetches each due site once and queues its matches for every user who wants that site."""
     stats = Counter()
@@ -135,7 +143,7 @@ def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, 
             stats[f"{sid}:blocked"] += 1
             continue
         except Exception as e:  # one broken site must not stop the others
-            print(f"[{sid}] error: {type(e).__name__}")
+            print(f"[{site_label(sid, shared)}] error: {type(e).__name__}")
             stats[f"{sid}:error"] += 1
             continue
         last_fetch[sid] = now.isoformat()
@@ -146,7 +154,7 @@ def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, 
             for job in jobs:
                 stats[f"{sid}:{queue_for(run, job, sid, max_age, shared)}"] += 1
         # counts only: the public log must not show what anyone searches for
-        print(f"[{sid}] fetched {stats[f'{sid}:fetched']}, users {len(wanting)}, new {stats[f'{sid}:new']}")
+        print(f"[{site_label(sid, shared)}] fetched {stats[f'{sid}:fetched']}, users {len(wanting)}, new {stats[f'{sid}:new']}")
     return stats
 
 
