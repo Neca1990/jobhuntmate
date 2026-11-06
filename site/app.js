@@ -758,8 +758,10 @@ function cvCell(a) {
   }
   if (a.cv_state === "waiting") return [el("span", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), ` ${t("a.cv_waiting")}`])];
   if (a.cv_state === "ready") {
+    // on a sent application the Follow-up button opens the same panel (downloads, earlier versions), so no "more" here
     return [el("button", { class: "ghost small", text: t("a.view_cv"), onclick: () => previewFile(a.cv_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
-      el("button", { class: "ghost small", text: state.appOpen === a.id ? "▴" : "⋯", title: t("a.more"), onclick: () => toggleOpen(a) })];
+      a.status !== "sent" && el("button", { class: "ghost small", text: state.appOpen === a.id ? "▴" : "⋯", title: t("a.more"), onclick: () => toggleOpen(a) })]
+      .filter(Boolean);
   }
   if (a.status === "sent" || NO_CV.has(a.status)) return [];
   return [el("button", { class: "small", text: t("a.make_cv"), onclick: () => toggleOpen(a) })];
