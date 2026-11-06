@@ -2,7 +2,7 @@
 import * as auth from "./auth/index.js";
 import { PROVIDERS } from "./auth/index.js";
 import { onAdminCommand, onMembership } from "./admin_chat.js";
-import { routes as agencyRoutes } from "./agencies.js";
+import { routes as agencyRoutes, saveFile } from "./agencies.js";
 import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js";
 import { PRIVACY_VERSION, routes as privacyRoutes } from "./privacy.js";
 import { cardAction, postingsClosed, relabel } from "./cards.js";
@@ -268,6 +268,12 @@ on("PUT", "/api/engine/users/:id/:name", async ({ request, env, db, params }) =>
   requireEngine(request, env);
   const data = await readBody(request, 5 * 1024 * 1024);
   const now = nowIso();
+  if (params.name === "files") {
+    // the owner's tools put a file on someone's account (e.g. CVs made before the site existed)
+    if (!(await db.prepare("SELECT 1 FROM users WHERE id = ?").bind(params.id).first())) throw new HttpError(404, "not_found");
+    return json(await saveFile(db, params.id, { name: data.name, data: data.data, kind: data.kind,
+      madeBy: data.made_by === "user" ? "user" : "tailored" }));
+  }
   if (params.name === "checks") {
     // "is the posting still up": only these two fields, on postings the user still has
     const closed = [];

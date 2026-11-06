@@ -235,13 +235,6 @@ export function routes(on, { requireUser, requireEngine }) {
     }
     return json({ requests: out });
   });
-  // the owner's tools put a file on someone's account (e.g. bringing over CVs made before the site existed)
-  on("PUT", "/api/engine/users/:id/files", async ({ request, env, db, params }) => {
-    requireEngine(request, env);
-    const body = await readBody(request, 2_400_000);
-    if (!(await db.prepare("SELECT 1 FROM users WHERE id = ?").bind(params.id).first())) throw new HttpError(404, "not_found");
-    return json(await saveFile(db, params.id, { name: body.name, data: body.data, kind: body.kind, madeBy: body.made_by === "user" ? "user" : "tailored" }));
-  });
   on("GET", "/api/engine/files/:id", async ({ request, env, db, params }) => {
     requireEngine(request, env);
     return fileResponse(db, params.id);
