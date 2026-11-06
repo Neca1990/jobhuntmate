@@ -59,6 +59,16 @@
   </div>
 
   <div id="onboarding" class="overlay hidden"></div>
+  <dialog id="preview" class="preview">
+    <div class="preview-head">
+      <strong id="preview-title"></strong>
+      <div class="row">
+        <a id="preview-open" class="button ghost small" target="_blank" rel="noopener" data-t="open_tab"></a>
+        <button id="preview-close" class="ghost small" type="button" data-t="close"></button>
+      </div>
+    </div>
+    <iframe id="preview-frame" title="Preview"></iframe>
+  </dialog>
   <div id="version" class="version" title="Version"></div>
 
   <script type="module" src="app.js?v=__V__"></script>

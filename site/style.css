@@ -24,7 +24,7 @@ button, a.button, summary.button { font: inherit; cursor: pointer; border-radius
 button.ghost, a.button.ghost, summary.button.ghost { background: transparent; color: var(--accent); }
 button.danger { background: transparent; color: var(--error); border-color: var(--error); }
 button:disabled { opacity: .55; cursor: default; }
-button.small { padding: 3px 9px; font-size: .82rem; }
+button.small, a.button.small, summary.button.small { padding: 3px 9px; font-size: .82rem; }
 input, select, textarea { font: inherit; color: var(--text); background-color: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 /* one height for every field, and the same arrow on every dropdown (browsers draw their own differently) */
 input:not([type=checkbox]):not([type=radio]):not([type=file]), select { height: 40px; line-height: 22px; }
@@ -137,3 +137,10 @@ a:hover { text-decoration: underline; }
 .muted a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 2px; }
 .muted a:hover { color: var(--accent); text-decoration-color: var(--accent); }
 a.button:hover { text-decoration: none; }
+/* a file shown on the page (the browser's PDF viewer), without downloading it */
+.preview { width: min(920px, calc(100vw - 32px)); height: calc(100vh - 48px); padding: 0; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card); color: var(--text); }
+.preview[open] { display: flex; flex-direction: column; }
+.preview::backdrop { background: rgba(0, 0, 0, .55); }
+.preview-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.preview iframe { flex: 1; width: 100%; border: 0; background: #525659; }

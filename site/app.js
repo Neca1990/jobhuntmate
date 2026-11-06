@@ -679,6 +679,22 @@ async function downloadFile(id) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+// a PDF opens on the page in the browser's viewer; other files (Word) are downloaded
+let previewUrl = "";
+async function previewFile(id, name = "") {
+  const r = await fetch(`/api/files/${encodeURIComponent(id)}`, { credentials: "same-origin" });
+  if (!r.ok) return;
+  const blob = await r.blob();
+  if (!blob.type.includes("pdf")) return downloadFile(id);
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+  $("#preview-title").textContent = name || (r.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "CV";
+  $("#preview-frame").src = previewUrl;
+  $("#preview-open").href = previewUrl;
+  $("#preview").showModal();
+}
+$("#preview-close").addEventListener("click", () => $("#preview").close());
+$("#preview").addEventListener("click", (e) => { if (e.target.id === "preview") e.target.close(); }); // a click beside it
 async function loadFiles() {
   state.files = (await api("GET", "/api/files")).files;
   return state.files;
@@ -699,6 +715,7 @@ function filesCard() {
     el("div", { class: "list" }, files.length ? files.map((f) => el("div", { class: "item" }, [
       el("span", { class: "grow" }, [el("strong", { text: f.name }), " ",
         el("span", { class: "muted", text: `${Math.ceil(f.size / 1024)} KB · ${f.created_at.slice(0, 10)}${f.made_by === "tailored" ? ` · ${t("f.tailored")}` : ""}` })]),
+      f.name.toLowerCase().endsWith(".pdf") && el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(f.id, f.name).catch(() => {}) }),
       el("button", { class: "ghost small", text: t("f.download"), onclick: () => downloadFile(f.id).catch(() => {}) }),
       el("button", { class: "danger small", text: t("s.remove"), onclick: async () => {
         if (!confirm(t("f.confirm_delete"))) return;
@@ -824,6 +841,7 @@ function mailBlock(a) {
     el("div", { class: "copyrow multi" }, [el("span", { class: "muted", text: t("ag.body") }), el("pre", { class: "copytext", text: m.body }),
       el("button", { class: "ghost small", text: t("copy"), onclick: (e) => navigator.clipboard.writeText(m.body).then(() => { e.target.textContent = "✅"; }) })]),
     el("div", { class: "row", style: "justify-content:flex-start" }, [menu,
+      a.cv_file_id && el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(a.cv_file_id).catch(() => {}) }),
       a.cv_file_id && el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
       el("button", { class: "ghost small", text: t("ag.edit"), onclick: () => { state.agEditing = a.id; drawAgencies(); } })].filter(Boolean))]);
 }
@@ -892,6 +910,7 @@ function agencyCard(a) {
   }
   if (a.status === "ready" && !a.mail && a.cv_file_id) {
     parts.push(el("div", { class: "row", style: "justify-content:flex-start" }, [
+      el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(a.cv_file_id).catch(() => {}) }),
       el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
       a.prijava_link && el("a", { class: "button ghost small", href: a.prijava_link, target: "_blank", rel: "noopener noreferrer", text: t("ag.apply_site") })].filter(Boolean)));
   }
