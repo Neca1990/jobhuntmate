@@ -4,11 +4,14 @@ import { LANGS, lang, nameOf, setLang, t } from "./i18n.js?v=__V__";
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+// links come from postings and agencies too: only web, mail, Telegram, file downloads and the site's own pages
+const SAFE_LINK = /^(https?:|mailto:|tg:|blob:|\/|#|\?)/i;
 function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === null || v === false) continue;
-    if (k === "text") node.textContent = v;
+    if (k === "href") node.setAttribute("href", SAFE_LINK.test(String(v).trim()) ? v : "#");
+    else if (k === "text") node.textContent = v;
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
     else if (k === "checked" || k === "value" || k === "selected") node[k] = v;
     else node.setAttribute(k, v === true ? "" : v);
@@ -51,7 +54,7 @@ function changeLang(l) {
   if (state.settings && state.settings.language !== l) { state.settings.language = l; markDirty(); }
   paintStatic();
   if (state.me) renderApp();
-  else $("#where").textContent = state.login.pushed ? t("where_pushed") : t("where_link");
+  else $("#where").textContent = state.login.pushed ? t("where_device") : t("where_link");
 }
 
 // ---------- sign in ----------
@@ -72,13 +75,12 @@ const invite = new URLSearchParams(location.search).get("invite") || "";
 
 $("#start").addEventListener("click", async () => {
   try {
-    const username = $("#username").value.trim();
-    const r = await api("POST", "/api/auth/telegram/start", { invite, username });
-    Object.assign(state.login, { token: r.token, pushed: Boolean(username) });
+    const r = await api("POST", "/api/auth/telegram/start", { invite });
+    Object.assign(state.login, { token: r.token, pushed: r.pushed });
     $("#match").textContent = r.match;
     $("#chat-code").textContent = r.chat_code ? `${r.chat_code.slice(0, 3)} ${r.chat_code.slice(3)}` : "";
     $("#chat-code-copy").onclick = (e) => navigator.clipboard.writeText(r.chat_code).then(() => { e.target.textContent = "✅"; });
-    $("#where").textContent = r.pushed ? t("where_device") : username ? t("where_pushed") : t("where_link");
+    $("#where").textContent = r.pushed ? t("where_device") : t("where_link");
     // a remembered browser: the numbers are already in Telegram; this sends them again if needed
     $("#resend").classList.toggle("hidden", !r.known);
     $("#resend").textContent = t("resend");
@@ -135,7 +137,6 @@ async function answerWho(yes) {
 $("#confirm-yes").addEventListener("click", () => answerWho(true));
 $("#confirm-no").addEventListener("click", () => answerWho(false));
 $("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#verify").click(); });
-$("#username").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#start").click(); });
 $("#restart").addEventListener("click", () => showLogin("start"));
 $("#resend").addEventListener("click", async (e) => {
   const b = e.currentTarget;

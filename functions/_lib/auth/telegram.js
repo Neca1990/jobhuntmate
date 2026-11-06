@@ -69,6 +69,11 @@ export async function onRefused(env, contact) {
 export async function onText(env, db, message, reach) {
   const code = String(message.text || "").replace(/\s+/g, "");
   if (/^\d{6}$/.test(code)) {
+    // guessing other people's codes: a few tries an hour per Telegram account
+    const tries = await db.prepare("SELECT COUNT(*) AS n FROM login_pushes WHERE provider = 'code' AND subject = ? AND at > ?")
+      .bind(String(message.from.id), nowIso(Date.now() - 3600_000)).first();
+    if (tries.n >= 10) return sendMessage(env, message.chat.id, "⏳ Too many codes this hour – try again later. / Previše kodova u ovom satu – probaj kasnije.");
+    await db.prepare("INSERT INTO login_pushes (provider, subject, at) VALUES ('code', ?, ?)").bind(String(message.from.id), nowIso()).run();
     const offer = await reach(db, { chat_code: code }, message.from.id, label(message.from), { chat_id: message.chat.id });
     if (offer) return deliver(env, message.chat.id, offer);
     return sendMessage(env, message.chat.id, `⌛ ${brand.name}: no sign-in with this code – it expired or was used. Start again on the site.\n` +
@@ -81,13 +86,6 @@ export async function onText(env, db, message, reach) {
 }
 
 // "@username" typed on the site by someone who already has an account
-export async function push(env, db, req, username, opts) {
-  const wanted = `@${String(username).replace(/^@/, "").trim()}`.toLowerCase();
-  const who = await db.prepare("SELECT i.subject FROM identities i JOIN users u ON u.id = i.user_id " +
-    "WHERE i.provider = 'telegram' AND lower(i.label) = ? AND u.active = 1").bind(wanted).first();
-  return who ? pushTo(env, db, req, who.subject, opts) : false;
-}
-
 // the numbers sent straight to a known account's chat (remembered browser, @username, "send it again");
 // "limited" when that account already got its share this hour
 export async function pushTo(env, db, req, subject, { reach, maxPerHour }) {

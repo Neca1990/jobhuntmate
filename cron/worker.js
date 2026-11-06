@@ -22,6 +22,13 @@ async function tick(env) {
   return r.started ? `started (${due.users} users)` : r.reason;
 }
 
+// compares hashes of equal length, so the answer time doesn't reveal how much of the key was right
+async function sameKey(a, b) {
+  const h = async (x) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(x)));
+  const [x, y] = await Promise.all([h(a), h(b)]);
+  return crypto.subtle.timingSafeEqual ? crypto.subtle.timingSafeEqual(x, y) : x.every((v, i) => v === y[i]);
+}
+
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(tick(env).then((result) => console.log(result)));
@@ -29,7 +36,9 @@ export default {
   // "search now" from the site's admin page (the site holds the same ENGINE_KEY)
   async fetch(request, env) {
     if (request.method !== "POST" || new URL(request.url).pathname !== "/run") return new Response("scheduler");
-    if ((request.headers.get("authorization") || "") !== `Bearer ${env.ENGINE_KEY}`) return new Response("forbidden", { status: 403 });
+    if (!env.ENGINE_KEY || !(await sameKey(request.headers.get("authorization") || "", `Bearer ${env.ENGINE_KEY}`))) {
+      return new Response("forbidden", { status: 403 });
+    }
     const body = await request.json().catch(() => ({}));
     // a just-approved posting: only "is it still up" (a search already running checks it at its end anyway)
     if (body.check) return Response.json(await dispatch(env, { trigger: "check", check_only: "true" }));

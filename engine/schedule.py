@@ -14,7 +14,11 @@ def _hm(s: str) -> time:
 
 
 def in_active_window(now_utc: datetime, sched: dict) -> bool:
-    local = now_utc.astimezone(ZoneInfo(sched.get("timezone", "UTC"))).time()
+    try:
+        zone = ZoneInfo(sched.get("timezone") or "UTC")
+    except Exception:  # an unknown zone in someone's settings must not stop the search for everyone
+        zone = ZoneInfo("UTC")
+    local = now_utc.astimezone(zone).time()
     start, end = _hm(sched.get("active_from", "00:00")), _hm(sched.get("active_to", "23:59"))
     return start <= local <= end if start <= end else (local >= start or local <= end)
 

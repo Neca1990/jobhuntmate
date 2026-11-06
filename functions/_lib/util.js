@@ -11,7 +11,7 @@ export class HttpError extends Error {
 export function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers },
   });
 }
 
@@ -45,8 +45,9 @@ export function sameSecret(a, b) {
 }
 
 export async function readBody(request, maxBytes = 64 * 1024) {
+  if (Number(request.headers.get("content-length") || 0) > maxBytes) throw new HttpError(413, "too_large");
   const text = await request.text();
-  if (text.length > maxBytes) throw new HttpError(413, "too_large");
+  if (new TextEncoder().encode(text).length > maxBytes) throw new HttpError(413, "too_large");
   if (!text) return {};
   try {
     return JSON.parse(text);

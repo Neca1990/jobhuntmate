@@ -6,7 +6,10 @@ const TOLERANCE_MIN = 15;
 const minutes = (hm) => { const [h, m] = String(hm || "00:00").split(":").map(Number); return h * 60 + m; };
 
 function localMinutes(now, tz) {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  let fmt;
+  try { fmt = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }); }
+  catch { fmt = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }); }
+  const parts = fmt.formatToParts(now);
   return Number(parts.find((p) => p.type === "hour").value) * 60 + Number(parts.find((p) => p.type === "minute").value);
 }
 
@@ -21,7 +24,7 @@ export function activeNow(settings, now) {
 export function isDue(users, lastRun, now) {
   const active = users.filter((u) => (u.searches || []).length && activeNow(u, now));
   if (!active.length) return { due: false, reason: "nobody_active" };
-  const every = Math.min(...active.map((u) => Number(u.schedule?.interval_hours) || 2));
+  const every = Math.min(...active.map((u) => Math.max(1, Number(u.schedule?.interval_hours) || 2)));
   const since = lastRun ? (now - new Date(lastRun)) / 60000 : Infinity;
   return since >= every * 60 - TOLERANCE_MIN ? { due: true, users: active.length } : { due: false, reason: "not_yet" };
 }

@@ -6,12 +6,36 @@ import { routes as agencyRoutes, saveFile } from "./agencies.js";
 import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js";
 import { PRIVACY_VERSION, routes as privacyRoutes } from "./privacy.js";
 import { cardAction, postingsClosed, relabel } from "./cards.js";
+import { TIMEZONES } from "./geo.gen.js";
 import { isDue } from "./schedule.js";
 import { deviceCookie, deviceId, endSession, requireUser } from "./session.js";
 import { HttpError, json, nowIso, parse, readBody, sameSecret } from "./util.js";
 
 const SETTINGS_KEYS = ["name", "language", "country", "notify_via", "channels", "searches", "schedule", "sources_enabled",
   "max_messages_per_run", "max_age_days", "dealbreakers", "profile"];
+// what the site's forms can produce; anything else is refused (a bad time zone or a tiny interval would stop or
+// flood the shared search for everyone)
+const INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+function checkSettings(s) {
+  const bad = (k) => { throw new HttpError(400, `bad_setting:${k}`); };
+  const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+  if (s.name !== undefined && (typeof s.name !== "string" || s.name.length > 80)) bad("name");
+  if (s.language !== undefined && !["en", "sr"].includes(s.language)) bad("language");
+  if (s.country !== undefined && !(s.country in TIMEZONES)) bad("country");
+  if (s.schedule !== undefined) {
+    const c = s.schedule;
+    if (!isObj(c) || ("interval_hours" in c && !INTERVALS.includes(Number(c.interval_hours)))) bad("schedule");
+    if (("active_from" in c && !HHMM.test(c.active_from)) || ("active_to" in c && !HHMM.test(c.active_to))) bad("schedule");
+    if ("timezone" in c && !Object.values(TIMEZONES).includes(c.timezone)) bad("schedule");
+  }
+  if (s.max_messages_per_run !== undefined && !(Number.isInteger(s.max_messages_per_run) && s.max_messages_per_run >= 1 && s.max_messages_per_run <= 30)) bad("max_messages_per_run");
+  if (s.max_age_days !== undefined && !(Number.isInteger(s.max_age_days) && s.max_age_days >= 1 && s.max_age_days <= 60)) bad("max_age_days");
+  if (s.searches !== undefined && (!Array.isArray(s.searches) || s.searches.length > 10 || !s.searches.every(isObj))) bad("searches");
+  for (const k of ["profile", "dealbreakers", "sources_enabled"]) if (s[k] !== undefined && !isObj(s[k])) bad(k);
+  if (s.dealbreakers && !Object.values(s.dealbreakers).every((v) => ["drop", "warn"].includes(v))) bad("dealbreakers");
+  if (s.notify_via !== undefined && (!Array.isArray(s.notify_via) || s.notify_via.some((v) => typeof v !== "string"))) bad("notify_via");
+}
 const ADMIN_SETTINGS = {
   registration: (v) => ["invite_only", "open"].includes(v),
   cv_generator: (v) => ["manual", "claude_api"].includes(v),
@@ -37,11 +61,12 @@ export async function handle(request, env) {
   for (const r of ROUTES) {
     const m = r.method === request.method && path.match(r.re);
     if (!m) continue;
-    const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
     try {
+      const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       return await r.fn({ request, env, db: env.DB, params, url });
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.code }, e.status);
+      if (e instanceof URIError) return json({ error: "bad_path" }, 400);
       console.log(`api error ${request.method} ${path}: ${e?.message}`); // no request data in logs
       return json({ error: "server_error" }, 500);
     }
@@ -54,7 +79,8 @@ on("GET", "/api/auth/providers", async ({ db }) => json({ providers: await auth.
 
 on("POST", "/api/auth/:provider/start", async ({ request, env, db, params }) => {
   const body = await readBody(request);
-  return json(await auth.start(env, db, params.provider, { invite: body.invite || "", username: body.username || "", device: deviceId(request) }));
+  return json(await auth.start(env, db, params.provider, { invite: body.invite || "", device: deviceId(request),
+    ip: request.headers.get("cf-connecting-ip") || "" }));
 });
 
 on("POST", "/api/auth/resend", async ({ request, env, db }) => {
@@ -92,7 +118,8 @@ on("POST", "/api/auth/logout", async ({ request, db }) => json({ ok: true }, 200
 
 // the bot's webhook: Telegram sends the secret we gave it in setWebhook
 on("POST", "/api/telegram", async ({ request, env, db }) => {
-  if (!sameSecret(request.headers.get("x-telegram-bot-api-secret-token") || "", env.TELEGRAM_WEBHOOK_SECRET || "-")) {
+  // no secret configured means no webhook at all (never "anything goes")
+  if (!env.TELEGRAM_WEBHOOK_SECRET || !sameSecret(request.headers.get("x-telegram-bot-api-secret-token") || "", env.TELEGRAM_WEBHOOK_SECRET)) {
     throw new HttpError(403, "forbidden");
   }
   const update = await readBody(request);
@@ -136,6 +163,7 @@ on("PUT", "/api/me/settings", async ({ request, db }) => {
   const next = { ...user.settings };
   for (const k of SETTINGS_KEYS) if (k in body) next[k] = body[k];
   next.channels = user.settings.channels || {}; // connected chats change only through their own flows
+  checkSettings(next); // the search and the scheduler trust these: nothing odd gets in
   await db.prepare("UPDATE users SET settings = ? WHERE id = ?").bind(JSON.stringify(next), user.id).run();
   return json({ settings: next });
 });

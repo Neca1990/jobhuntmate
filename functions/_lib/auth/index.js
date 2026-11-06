@@ -17,7 +17,8 @@ import * as telegram from "./telegram.js";
 export const PROVIDERS = { telegram };
 const LOGIN_MINUTES = 10;
 const MAX_ATTEMPTS = 5;
-const MAX_STARTS_PER_10_MIN = 30; // all requests together; a crude brake on someone flooding the bot
+const MAX_STARTS_PER_10_MIN = 300; // everyone together: a backstop only
+const MAX_STARTS_PER_IP = 10;       // per address in 10 minutes: one person can't block sign-in for everyone
 const MAX_PUSHES_PER_HOUR = 3; // sign-in messages sent to one known account without them asking
 
 export async function enabledProviders(db) {
@@ -27,7 +28,7 @@ export async function enabledProviders(db) {
 
 const twoDigits = () => String(10 + (crypto.getRandomValues(new Uint32Array(1))[0] % 90));
 
-export async function start(env, db, providerId, { invite = "", username = "", device = "" } = {}) {
+export async function start(env, db, providerId, { invite = "", device = "", ip = "" } = {}) {
   if (!(await enabledProviders(db)).includes(providerId)) throw new HttpError(400, "provider_off");
   const now = Date.now();
   await db.prepare("DELETE FROM login_requests WHERE expires_at < ?").bind(nowIso(now)).run();
@@ -35,23 +36,26 @@ export async function start(env, db, providerId, { invite = "", username = "", d
   const recent = await db.prepare("SELECT COUNT(*) AS n FROM login_requests WHERE created_at > ?")
     .bind(nowIso(now - 600_000)).first();
   if (recent.n >= MAX_STARTS_PER_10_MIN) throw new HttpError(429, "too_many_requests");
+  const ipHash = ip ? (await sha256(`ip:${ip}`)).slice(0, 32) : "";
+  if (ipHash) {
+    const mine = await db.prepare("SELECT COUNT(*) AS n FROM login_pushes WHERE provider = 'start' AND subject = ? AND at > ?")
+      .bind(ipHash, nowIso(now - 600_000)).first();
+    if (mine.n >= MAX_STARTS_PER_IP) throw new HttpError(429, "too_many_requests");
+    await db.prepare("INSERT INTO login_pushes (provider, subject, at) VALUES ('start', ?, ?)").bind(ipHash, nowIso(now)).run();
+  }
   const token = randomToken();
   const req = { token_hash: await sha256(token), rid: randomToken(12), match: twoDigits(), provider: providerId,
     chat_code: await freeChatCode(db) };
   await db.prepare("INSERT INTO login_requests (token_hash, rid, match, provider, created_at, expires_at, invite, chat_code) " +
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(req.token_hash, req.rid, req.match, providerId, nowIso(now),
     nowIso(now + LOGIN_MINUTES * 60_000), String(invite).slice(0, 64), req.chat_code).run();
-  // a known account can be reached directly; for a typed @username the answer is the same whether it exists or not
+  // a browser this person signed in on before: the numbers go to their Telegram by themselves. (Only a remembered
+  // browser can do this – typing someone's name to send them sign-in prompts is not possible.)
   let known = false, pushed = false;
-  if (username && PROVIDERS[providerId].push) {
-    await PROVIDERS[providerId].push(env, db, req, username, { reach, maxPerHour: MAX_PUSHES_PER_HOUR });
-  } else {
-    // a browser this person signed in on before: the numbers go to their Telegram by themselves
-    const subject = await rememberedSubject(db, providerId, device);
-    if (subject && PROVIDERS[providerId].pushTo) {
-      known = true;
-      pushed = (await PROVIDERS[providerId].pushTo(env, db, req, subject, { reach, maxPerHour: MAX_PUSHES_PER_HOUR })) === true;
-    }
+  const subject = await rememberedSubject(db, providerId, device);
+  if (subject && PROVIDERS[providerId].pushTo) {
+    known = true;
+    pushed = (await PROVIDERS[providerId].pushTo(env, db, req, subject, { reach, maxPerHour: MAX_PUSHES_PER_HOUR })) === true;
   }
   return { token, match: req.match, chat_code: req.chat_code, expires_in: LOGIN_MINUTES * 60, known, pushed,
     ...PROVIDERS[providerId].instructions(env, token) };

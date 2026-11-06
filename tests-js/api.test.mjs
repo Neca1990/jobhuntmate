@@ -234,17 +234,11 @@ test("a wrong number cancels the sign-in, and someone else's tap does nothing", 
   assert.equal((await call("POST", "/api/auth/poll", { body: { token: start.token } })).status, 400);
 });
 
-test("a known @username gets the numbers directly; an unknown one looks the same from outside", async () => {
-  await signIn(OWNER); // the owner's account now exists with @user1001
+test("typing someone's @username sends them nothing (only a remembered browser gets the numbers pushed)", async () => {
+  await signIn(OWNER);
   sent = [];
-  const known = await (await call("POST", "/api/auth/telegram/start", { body: { username: "@USER1001" } })).json();
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].body.chat_id, OWNER);
-  const unknown = await (await call("POST", "/api/auth/telegram/start", { body: { username: "nobody" } })).json();
-  assert.equal(sent.length, 1);
-  assert.deepEqual(Object.keys(known).sort(), Object.keys(unknown).sort());
-  await tap(OWNER, buttons(sent[0]).find((d) => d.endsWith(`:${known.match}`)));
-  assert.equal((await call("POST", "/api/auth/poll", { body: { token: known.token } })).status, 200);
+  const r = await (await call("POST", "/api/auth/telegram/start", { body: { username: `@user${OWNER}` } })).json();
+  assert.deepEqual([r.known, r.pushed, sent.length], [false, false, 0]);
 });
 
 test("nobody can flood a known account with sign-in prompts", async () => {
@@ -707,4 +701,29 @@ test("the owner's tools can put a file on an account (engine key only)", async (
   assert.equal(r.made_by, "tailored");
   const files = (await (await call("GET", "/api/files", { cookie })).json()).files;
   assert.deepEqual(files.map((f) => f.id), [r.id]);
+});
+
+test("security: no webhook without a secret; one address can't block sign-in for all; code guessing is limited", async () => {
+  delete env.TELEGRAM_WEBHOOK_SECRET;
+  const forged = await call("POST", "/api/telegram", { headers: { "x-telegram-bot-api-secret-token": "-" }, body: { update_id: 1 } });
+  assert.equal(forged.status, 403);
+  env.TELEGRAM_WEBHOOK_SECRET = SECRET;
+  const from = (ip) => ({ headers: { "cf-connecting-ip": ip }, body: {} });
+  for (let i = 0; i < 10; i++) assert.equal((await call("POST", "/api/auth/telegram/start", from("10.0.0.1"))).status, 200);
+  assert.equal((await call("POST", "/api/auth/telegram/start", from("10.0.0.1"))).status, 429);
+  assert.equal((await call("POST", "/api/auth/telegram/start", from("10.0.0.2"))).status, 200); // someone else still can
+  for (let i = 0; i < 10; i++) await webhook(5555, String(100000 + i));
+  sent = [];
+  await webhook(5555, "123456");
+  assert.match(sent.at(-1).body.text, /Too many codes/);
+});
+
+test("security: settings the forms can't produce are refused", async () => {
+  const { cookie } = await signIn(OWNER);
+  for (const body of [{ schedule: { timezone: "x" } }, { schedule: { interval_hours: 0.01 } }, { schedule: { active_from: "25:00" } },
+    { language: "xx" }, { country: "ZZ" }, { max_messages_per_run: 500 }, { searches: "all" }, { dealbreakers: { language: "maybe" } }]) {
+    assert.equal((await call("PUT", "/api/me/settings", { cookie, body })).status, 400, JSON.stringify(body));
+  }
+  assert.equal((await call("PUT", "/api/me/settings", { cookie, body: { schedule: { interval_hours: 3, active_from: "07:30", active_to: "21:00" } } })).status, 200);
+  assert.equal((await call("GET", "/api/files/%E0", { cookie })).status, 400); // a broken path is answered, not a crash page
 });

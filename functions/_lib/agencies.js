@@ -37,7 +37,7 @@ export async function fileResponse(db, id, userId) {
     .bind(...(userId ? [id, userId] : [id])).first();
   if (!row) throw new HttpError(404, "not_found");
   const body = row.data instanceof ArrayBuffer ? new Uint8Array(row.data) : Uint8Array.from(row.data);
-  return new Response(body, { headers: { "content-type": row.mime, "cache-control": "no-store",
+  return new Response(body, { headers: { "content-type": row.mime, "cache-control": "no-store", "x-content-type-options": "nosniff",
     "content-disposition": `attachment; filename="${row.name.replace(/[^\w.() -]/g, "_")}"` } });
 }
 
@@ -187,6 +187,12 @@ export function routes(on, { requireUser, requireEngine }) {
     const body = await readBody(request, 16 * 1024);
     const target = TARGETS[body.kind];
     if (!target) throw new HttpError(400, "bad_kind");
+    // each request reaches the admin's Telegram: a generous daily limit, and agencies only from the catalog or one's own
+    const today = await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE user_id = ? AND created_at > ?")
+      .bind(user.id, nowIso(Date.now() - 86400_000)).first();
+    if (today.n >= 30) throw new HttpError(429, "too_many_requests");
+    if (body.kind.startsWith("agency") && !String(body.target).startsWith("own:") &&
+      !(await db.prepare("SELECT 1 FROM agencies WHERE id = ?").bind(String(body.target)).first())) throw new HttpError(404, "not_found");
     const data = (await target.load(db, user.id, String(body.target))) ?? (body.kind === "agency_mail" ? {} : null);
     if (!data) throw new HttpError(404, "not_found");
     const change = String(body.change || "").trim().slice(0, 2000); // "make it again, but…" after seeing a version
