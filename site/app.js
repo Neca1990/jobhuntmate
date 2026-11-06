@@ -48,10 +48,15 @@ function paintStatic() {
     class: `small ${l === lang() ? "" : "ghost"}`, text: l.toUpperCase(),
     onclick: () => changeLang(l) }))));
 }
+// the language is saved at once (the header switch is its only place), never as an "unsaved change"
 function changeLang(l) {
   setLang(l);
   store.set("lang", l);
-  if (state.settings && state.settings.language !== l) { state.settings.language = l; markDirty(); }
+  if (state.settings) state.settings.language = l;
+  if (state.me && state.me.settings?.language !== l) {
+    state.me.settings = { ...state.me.settings, language: l };
+    api("PUT", "/api/me/settings", { language: l }).then((r) => { state.me.settings = { ...r.settings }; }).catch(() => {});
+  }
   paintStatic();
   if (state.me) renderApp();
   else $("#where").textContent = state.login.pushed ? t("where_device") : t("where_link");
@@ -245,7 +250,6 @@ function renderApp() {
   TABS.forEach((x) => $(`#tab-${x}`).classList.toggle("hidden", x !== state.tab));
   if (state.tab === "account") state.accountVisit = Date.now();
   ({ searches: renderSearches, applications: renderApplications, agencies: renderAgencies, account: renderAccount, admin: renderAdmin })[state.tab]();
-  $("#savebar").classList.toggle("hidden", state.tab !== "searches");
   paintSaveStatus();
 }
 
@@ -256,7 +260,7 @@ const draftKey = () => `draft:${state.me?.id}`;
 // (ticking a box off and on again is no change), so only real edits count as unsaved.
 function normalized(src) {
   const s = structuredClone(src || {});
-  s.language ||= lang();
+  delete s.language; // saved on its own by the header switch: never an "unsaved change"
   s.country ||= "RS";
   s.searches ||= [];
   s.schedule = { interval_hours: 2, active_from: "08:00", active_to: "22:00", ...(s.schedule || {}) };
@@ -319,10 +323,20 @@ function showRestored() {
 function draftDiffers() {
   return !unchanged();
 }
+// the bar at the bottom shows only while settings (Searches, Account) have changes, on whichever tab; a message
+// (saved, an error) keeps it up for a moment
+let saveBarTimer = 0;
 function paintSaveStatus(text, cls = "") {
   const s = $("#save-status");
   s.textContent = text ?? (state.dirty ? t("unsaved") : "");
   s.className = text ? cls : "warn";
+  clearTimeout(saveBarTimer);
+  const show = state.dirty || Boolean(text);
+  $("#savebar").classList.toggle("hidden", !show);
+  $("#save").classList.toggle("hidden", !state.dirty);
+  $("#discard").classList.toggle("hidden", !state.dirty);
+  if (text && !state.dirty) saveBarTimer = setTimeout(() => $("#savebar").classList.add("hidden"), 2500);
+  refreshSearchAll();
 }
 
 // ---------- searches & settings ----------
@@ -436,17 +450,7 @@ function renderSearches() {
   st.profile.languages ||= [];
   st.profile.skills ||= [];
   st.dealbreakers ||= {};
-  const general = el("div", { class: "card" }, [el("div", { class: "grid" }, [
-    track(el("label", {}, [t("language"), selectEl(LANGS.map((l) => [l, l === "sr" ? "Srpski" : "English"]), lang(), (v) => changeLang(v))]),
-      (src) => src.language),
-    track(el("label", {}, [t("country"), selectEl(opt().countries.map((c) => [c.code, c.name]), st.country || "RS", (v) => {
-      st.country = v;
-      const cities = new Set(country().cities.map((c) => c.id));
-      st.searches.forEach((s) => { s.locations = s.locations.filter((l) => l === "remote" || l.startsWith("place:") || cities.has(l)); });
-      markDirty();
-      renderSearches();
-    })]), (src) => src.country),
-  ])]);
+  const general = null; // language is in the header, country in the Account tab
   const searches = el("div", { class: "card" }, [
     el("div", { class: "row" }, [el("h2", { text: t("s.searches") }),
       el("button", { class: "ghost small", text: t("s.add_search"), onclick: () => { st.searches.push(newSearch()); markDirty(); renderSearches(); } })]),
@@ -574,12 +578,16 @@ function renderProfileAndRules(...before) {
     ...DEALBREAKERS.map((k) => track(el("label", { class: "inline", style: "justify-content:space-between" }, [t(`db.${k}`),
       selectEl([["drop", t("s.drop")], ["warn", t("s.warn")]], st.dealbreakers[k] || "drop", (v) => { st.dealbreakers[k] = v; markDirty(); })]),
       (src) => src.dealbreakers[k] || "drop"))]);
-  $("#tab-searches").replaceChildren(searchAllCard(), ...before, profile, rules);
+  $("#tab-searches").replaceChildren(searchAllCard(), ...before.filter(Boolean), profile, rules);
   paintDiffs();
 }
 
 // ---- "search everything for me": the whole archive against the saved settings ----
-let searchAllTimer = 0;
+let searchAllTimer = 0, searchAllLast = null;
+function refreshSearchAll() {
+  const box = $(".search-all");
+  if (box && searchAllLast) loadSearchAll(box, searchAllLast);
+}
 function searchAllCard() {
   const box = el("div", { class: "card search-all" }, [el("p", { class: "muted", text: t("loading") })]);
   loadSearchAll(box);
@@ -589,6 +597,7 @@ async function loadSearchAll(box, posted = null) {
   clearTimeout(searchAllTimer);
   let s = posted;
   try { s ||= await api("GET", "/api/search-all"); } catch { return; }
+  searchAllLast = s;
   if (!box.isConnected) return;
   const busy = ["waiting", "running"].includes(s.state);
   const note = el("p", { role: "status" });
@@ -618,6 +627,13 @@ async function loadSearchAll(box, posted = null) {
   else if (s.blocked === "cooldown") searchAllTimer = setTimeout(() => loadSearchAll(box), Math.max(5000, new Date(s.next_at) - Date.now() + 1000));
 }
 
+$("#discard").addEventListener("click", () => {
+  state.settings = structuredClone(state.me.settings || {});
+  state.dirty = false;
+  state.restored = false;
+  clearDraft();
+  renderApp();
+});
 $("#save").addEventListener("click", async () => {
   const st = state.settings;
   if (!(st.name || "").trim()) return paintSaveStatus(t("acc.need_name"), "error");
@@ -1350,9 +1366,17 @@ function renderAccount() {
     }).catch(() => {});
   }
   $("#tab-account").replaceChildren(el("div", { class: "card" }, [
-    el("label", {}, [t("acc.name"), el("input", { type: "text", value: state.settings.name || "", oninput: (e) => {
-      state.settings.name = e.target.value; markDirty(); $("#savebar").classList.remove("hidden");
-    } })]),
+    el("div", { class: "grid" }, [
+      track(el("label", {}, [t("acc.name"), el("input", { type: "text", maxlength: 80, value: state.settings.name || "", oninput: (e) => {
+        state.settings.name = e.target.value; markDirty();
+      } })]), (src) => src.name || ""),
+      track(el("label", {}, [t("country"), selectEl(opt().countries.map((c) => [c.code, c.name]), state.settings.country || "RS", (v) => {
+        state.settings.country = v;
+        const cities = new Set(country().cities.map((c) => c.id));
+        (state.settings.searches || []).forEach((s) => { s.locations = s.locations.filter((l) => l === "remote" || l.startsWith("place:") || cities.has(l)); });
+        markDirty();
+      })]), (src) => src.country || "RS"),
+    ]),
     el("p", { class: "muted", text: `${t("acc.member_since")}: ${(me.created_at || "").slice(0, 10)}` }),
     el("h2", { text: t("acc.signins") }),
     el("div", { class: "list" }, me.identities.map((i) => el("div", { class: "item" }, [

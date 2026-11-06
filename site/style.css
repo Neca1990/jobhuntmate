@@ -310,3 +310,5 @@ button.go:not(:disabled):hover { transform: translateY(-1px); }
 .badge { display: inline-block; min-width: 54px; text-align: center; padding: 2px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
 .badge.cv { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
 .badge.letter { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.savebar { box-shadow: 0 -6px 20px rgba(0,0,0,.08); animation: barup .25s ease-out; }
+@keyframes barup { from { transform: translateY(100%); } }
