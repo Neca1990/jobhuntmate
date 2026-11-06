@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import os
 import re
+import urllib.error
+from collections import Counter
 
 from .http import post_json
 from .i18n import t
@@ -32,6 +34,37 @@ def _clean(text: str) -> str:
     return "\n".join(lines[:8])
 
 
+class AIError(Exception):
+    """A provider answered with an error, blocked the prompt or gave no text. The message is only the provider's
+    codes (e.g. "429 RESOURCE_EXHAUSTED", "blocked SAFETY"), never its wording: the search log is public, and error
+    texts can carry account details."""
+
+    def __init__(self, reason: str, pause: bool = False):
+        super().__init__(reason)
+        self.pause = pause  # no point asking again this run (quota used up, key refused)
+
+
+_CODE = re.compile(r"[A-Za-z0-9_.-]{1,40}")
+# answers that won't change within a run: the quota is gone, or the key/model is refused
+_PAUSE = {"429", "401", "403", "404", "RESOURCE_EXHAUSTED", "PERMISSION_DENIED", "UNAUTHENTICATED", "NOT_FOUND",
+          "rate_limit_exceeded", "insufficient_quota", "invalid_api_key", "model_not_found", "model_decommissioned"}
+
+
+def _codes(*values) -> list:
+    return [str(v) for v in values if v not in (None, "") and _CODE.fullmatch(str(v))]
+
+
+def _check_error(r) -> None:
+    # post_json hands back the error body on HTTP errors instead of raising
+    err = r.get("error") if isinstance(r, dict) else None
+    if not isinstance(r, dict):
+        raise AIError("unexpected answer")
+    if err:
+        err = err if isinstance(err, dict) else {}
+        codes = _codes(err.get("code"), err.get("status"), err.get("type"))
+        raise AIError(" ".join(codes) or "error", pause=bool(_PAUSE & set(codes)))
+
+
 def _gemini(prompt: str) -> str:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
@@ -41,7 +74,14 @@ def _gemini(prompt: str) -> str:
         {"contents": [{"parts": [{"text": prompt}]}]},
         timeout=30, headers={"x-goog-api-key": key},
     )
-    return r["candidates"][0]["content"]["parts"][0]["text"]
+    _check_error(r)
+    if not r.get("candidates"):
+        raise AIError(" ".join(["blocked"] + _codes((r.get("promptFeedback") or {}).get("blockReason"))))
+    cand = r["candidates"][0]
+    text = "".join(p.get("text", "") for p in (cand.get("content") or {}).get("parts") or [])
+    if not text.strip():
+        raise AIError(" ".join(["no text"] + _codes(cand.get("finishReason"))))
+    return text
 
 
 def _groq(prompt: str) -> str:
@@ -53,7 +93,62 @@ def _groq(prompt: str) -> str:
         {"model": GROQ_MODEL, "messages": [{"role": "user", "content": prompt}]},
         timeout=30, headers={"Authorization": f"Bearer {key}"},
     )
-    return r["choices"][0]["message"]["content"]
+    _check_error(r)
+    choice = (r.get("choices") or [{}])[0]
+    text = (choice.get("message") or {}).get("content") or ""
+    if not text.strip():
+        raise AIError(" ".join(["no text"] + _codes(choice.get("finish_reason"))))
+    return text
+
+
+PROVIDERS = (("gemini", _gemini), ("groq", _groq))
+MAX_FAILS = 3  # failures in a row (timeouts, 5xx) before a provider is left alone for the rest of the run
+
+
+class Health:
+    """How the providers did this run: summaries each one wrote, why they failed, and which were paused. A paused
+    provider isn't asked again until the next run, so a used-up quota doesn't cost 30 s for every posting."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self) -> None:
+        self.used, self.failed = Counter(), Counter()
+        self.streak, self.paused = Counter(), {}
+
+    def ok(self, name: str) -> None:
+        self.used[name] += 1
+        self.streak[name] = 0
+
+    def fail(self, name: str, reason: str, pause: bool) -> None:
+        self.failed[f"{name}: {reason}"] += 1
+        self.streak[name] += 1
+        if (pause or self.streak[name] >= MAX_FAILS) and name not in self.paused:
+            self.paused[name] = reason
+            print(f"  summaries: {name} paused for this run ({reason})")
+
+    def report(self) -> dict:
+        """For the admin page and the log: counts and provider codes only."""
+        return {"by": dict(self.used), "failed": dict(self.failed.most_common(6)), "paused": dict(self.paused)}
+
+    def line(self) -> str:
+        parts = [f"{k} {v}" for k, v in self.used.items()]
+        paused = "; ".join(f"{k} paused: {v}" for k, v in self.paused.items())
+        return "summaries: " + (", ".join(parts) or "none") + (f" ({paused})" if paused else "")
+
+
+HEALTH = Health()
+
+
+def _reason(e: Exception) -> tuple:
+    """A short reason safe for a public log, and whether to stop asking this provider for the run."""
+    if isinstance(e, AIError):
+        return str(e), e.pause
+    if isinstance(e, urllib.error.HTTPError):  # an error page that wasn't JSON
+        return f"HTTP {e.code}", str(e.code) in _PAUSE
+    if isinstance(e, (TimeoutError, urllib.error.URLError, OSError)):
+        return "timeout or network", False
+    return type(e).__name__, False
 
 
 def _conditions_line(warnings: list, labels: dict, lang: str) -> str:
@@ -94,11 +189,18 @@ def summarize(job: Job, warnings: list = (), labels: dict = None, lang: str = "e
     """Returns (summary, provider). Provider "none" means the local fallback was used."""
     labels = labels or {}
     prompt = _prompt(job, lang, country, languages)
-    for name, fn in (("gemini", _gemini), ("groq", _groq)):
+    for name, fn in PROVIDERS:
+        if name in HEALTH.paused:
+            continue
         try:
             text = _clean(fn(prompt))
-            if text:
-                return ensure_lines(text, job, list(warnings), labels, lang), name
-        except Exception as e:  # network, quota, unexpected shape: try the next provider
-            print(f"  summary via {name} failed: {type(e).__name__}")
+        except Exception as e:  # quota, refused key, timeout, odd answer: the next provider, then the local summary
+            reason, pause = _reason(e)
+            HEALTH.fail(name, reason, pause)
+            print(f"  summary via {name} failed: {reason}")
+            continue
+        if text:
+            HEALTH.ok(name)
+            return ensure_lines(text, job, list(warnings), labels, lang), name
+    HEALTH.ok("none")
     return fallback(job, list(warnings), labels, lang), "none"
