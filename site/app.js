@@ -127,7 +127,7 @@ $("#sign-out").addEventListener("click", async () => {
 });
 
 // ---------- the app ----------
-const TABS = ["searches", "applications", "account", "admin"];
+const TABS = ["searches", "applications", "agencies", "account", "admin"];
 const STATUSES = ["pending", "approved", "ready", "sent", "test", "interview", "offer", "rejected", "skipped", "no_reply"];
 const DEALBREAKERS = ["language", "residency", "citizenship", "clearance"];
 const INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
@@ -171,7 +171,7 @@ function renderApp() {
   $("#tabs").replaceChildren(...tabs.map((x) => el("button", { class: `tab ${x === state.tab ? "active" : ""}`, text: t(`tab.${x}`),
     onclick: () => { state.tab = x; saveView(); scrollTo(0, 0); renderApp(); } })));
   TABS.forEach((x) => $(`#tab-${x}`).classList.toggle("hidden", x !== state.tab));
-  ({ searches: renderSearches, applications: renderApplications, account: renderAccount, admin: renderAdmin })[state.tab]();
+  ({ searches: renderSearches, applications: renderApplications, agencies: renderAgencies, account: renderAccount, admin: renderAdmin })[state.tab]();
   $("#savebar").classList.toggle("hidden", state.tab !== "searches");
   paintSaveStatus();
 }
@@ -657,9 +657,253 @@ async function refreshApplications(force = false) {
 setInterval(refreshApplications, 1000);
 document.addEventListener("visibilitychange", () => { lastActive = Date.now(); refreshApplications(true); });
 
+// ---------- files on the account (CVs) ----------
+const toBase64 = (file) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(",")[1]);
+  r.onerror = reject;
+  r.readAsDataURL(file);
+});
+async function uploadFile(file, kind = "cv") {
+  if (file.size > 1_500_000) throw Object.assign(new Error("file_too_large"), { code: "file_too_large" });
+  return api("POST", "/api/files", { name: file.name, kind, data: await toBase64(file) });
+}
+async function downloadFile(id) {
+  const r = await fetch(`/api/files/${encodeURIComponent(id)}`, { credentials: "same-origin" });
+  if (!r.ok) throw Object.assign(new Error("download"), { code: "default" });
+  const name = (r.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "file";
+  const url = URL.createObjectURL(await r.blob());
+  const a = el("a", { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function loadFiles() {
+  state.files = (await api("GET", "/api/files")).files;
+  return state.files;
+}
+function filesCard() {
+  const status = el("p", { class: "muted", text: t("f.note") });
+  const input = el("input", { type: "file", accept: ".pdf,.docx,.txt", class: "hidden", onchange: async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try { await uploadFile(file); await loadFiles(); renderAccount(); }
+    catch (err) { status.textContent = errText(err.code); status.className = "error"; }
+  } });
+  const files = state.files || [];
+  return el("div", { class: "card" }, [
+    el("div", { class: "row" }, [el("h2", { text: t("f.title") }), el("span", {}, [input,
+      el("button", { class: "ghost small", text: t("f.add"), onclick: () => input.click() })])]),
+    status,
+    el("div", { class: "list" }, files.length ? files.map((f) => el("div", { class: "item" }, [
+      el("span", { class: "grow" }, [el("strong", { text: f.name }), " ",
+        el("span", { class: "muted", text: `${Math.ceil(f.size / 1024)} KB · ${f.created_at.slice(0, 10)}${f.made_by === "tailored" ? ` · ${t("f.tailored")}` : ""}` })]),
+      el("button", { class: "ghost small", text: t("f.download"), onclick: () => downloadFile(f.id).catch(() => {}) }),
+      el("button", { class: "danger small", text: t("s.remove"), onclick: async () => {
+        if (!confirm(t("f.confirm_delete"))) return;
+        await api("DELETE", `/api/files/${encodeURIComponent(f.id)}`); await loadFiles(); renderAccount();
+      } }),
+    ])) : [el("p", { class: "muted", text: t("f.none") })]),
+  ]);
+}
+
+// ---------- agencies (headhunters) ----------
+// a shared catalog of researched agencies, plus each user's own dealings with them and agencies they add
+const AG_SECTIONS = [
+  ["suggested", ["suggested"]], ["prep", ["new", "waiting", "ready"]], ["sent", ["sent", "replied", "interview"]],
+  ["done", ["no_reply", "rejected", "dismissed"]],
+];
+const AG_STATUSES = ["suggested", "new", "waiting", "ready", "sent", "replied", "interview", "no_reply", "rejected", "dismissed"];
+const FOLLOWUP_DAYS = 10;
+const agSection = (status) => (AG_SECTIONS.find(([, list]) => list.includes(status)) || AG_SECTIONS[0])[0];
+const daysAgo = (iso) => Math.floor((Date.now() - new Date(iso)) / 86400000);
+const MAIL_APPS = [
+  ["Gmail", (to, su, b) => `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${b}`],
+  ["Outlook (outlook.com)", (to, su, b) => `https://outlook.live.com/mail/0/deeplink/compose?to=${to}&subject=${su}&body=${b}`],
+  ["Outlook (Microsoft 365)", (to, su, b) => `https://outlook.office.com/mail/deeplink/compose?to=${to}&subject=${su}&body=${b}`],
+  ["Yahoo Mail", (to, su, b) => `https://compose.mail.yahoo.com/?to=${to}&subject=${su}&body=${b}`],
+];
+
+async function renderAgencies() {
+  const root = $("#tab-agencies");
+  if (!state.agencies) root.replaceChildren(el("div", { class: "card muted", text: t("loading") }));
+  try {
+    const [ag] = await Promise.all([api("GET", "/api/agencies"), loadFiles()]);
+    state.agencies = ag;
+  } catch (e) {
+    if (e.status === 401) return showLogin("start");
+    root.replaceChildren(el("div", { class: "card error", text: errText(e.code) }));
+    return;
+  }
+  drawAgencies();
+}
+function agencyList() {
+  const { catalog, mine } = state.agencies;
+  const list = catalog.map((a) => ({ ...a, ...(mine[a.id] || {}), id: a.id, status: mine[a.id]?.status || "suggested" }));
+  for (const [id, a] of Object.entries(mine)) if (id.startsWith("own:")) list.push({ ...a, id, own: true, status: a.status || "new" });
+  const rank = { da: 0, mozda: 1, ne: 2 };
+  return list.sort((x, y) => (rank[x.preporuka] ?? 1) - (rank[y.preporuka] ?? 1) || String(x.name).localeCompare(String(y.name)));
+}
+async function saveAgency(id, change) {
+  try {
+    const r = await api("PUT", `/api/agencies/${encodeURIComponent(id)}`, change);
+    state.agencies.mine[id] = r.agency;
+  } catch (e) { agencyNote(errText(e.code), "error"); }
+  drawAgencies();
+}
+function agencyNote(text, cls = "ok") {
+  state.agencyNote = { text, cls };
+}
+function drawAgencies() {
+  state.agTab ||= "suggested";
+  const all = agencyList();
+  const groups = Object.fromEntries(AG_SECTIONS.map(([k]) => [k, all.filter((a) => agSection(a.status) === k)]));
+  const due = (a) => a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS;
+  const tabs = el("div", { class: "subtabs" }, AG_SECTIONS.map(([k]) => el("button", {
+    class: `subtab ${k === state.agTab ? "active" : ""}`,
+    text: `${t(`ag.sec.${k}`)} (${groups[k].length})${k === "sent" && groups[k].some(due) ? " ⏰" : ""}`,
+    onclick: () => { state.agTab = k; drawAgencies(); } })));
+  const note = state.agencyNote;
+  state.agencyNote = null;
+  const items = groups[state.agTab];
+  $("#tab-agencies").replaceChildren(
+    el("div", { class: "card" }, [el("h2", { text: t("tab.agencies") }), el("p", { class: "muted", text: t("ag.intro") }), tabs,
+      note && el("p", { class: note.cls, text: note.text }),
+      ...(items.length ? items.map(agencyCard) : [el("p", { class: "muted", text: t(`ag.empty.${state.agTab}`) })])]),
+    ownAgencyForm(),
+  );
+}
+function summaryOf(a) {
+  const line = (label, text) => text && el("p", {}, [el("strong", { text: `${label}: ` }), text]);
+  return el("div", { class: "ag-summary" }, [
+    el("div", { class: "chips" }, [a.tip && el("span", { class: "chip", text: t(`ag.type.${a.tip}`) }),
+      a.preporuka && el("span", { class: `chip advice-${a.preporuka}`, text: t(`ag.advice.${a.preporuka}`) })].filter(Boolean)),
+    line(t("ag.what"), a.sta_rade), line(t("ag.fit"), a.odgovara), line(t("ag.trust"), a.pouzdanost), line(t("ag.why"), a.zasto),
+    line(t("ag.whom"), a.email ? `${a.email}${a.email_opis ? ` – ${a.email_opis}` : ""}` : a.email_opis),
+    (a.koraci || []).length && el("div", {}, [el("strong", { text: `${t("ag.steps")}:` }), el("ol", {}, a.koraci.map((k) => el("li", { text: k })))]),
+    a.prijava_napomena && el("p", { class: "muted", text: a.prijava_napomena }),
+    (a.izvori || []).length && el("p", { class: "muted" }, [`${t("ag.sources")}: `, ...a.izvori.flatMap((u, i) => {
+      let host = u; try { host = new URL(u).hostname.replace(/^www\./, ""); } catch { /* keep as is */ }
+      return [i ? " · " : "", el("a", { href: u, target: "_blank", rel: "noopener noreferrer", text: host })];
+    }), a.provereno ? ` · ${t("ag.checked")} ${a.provereno}` : ""]),
+  ].filter(Boolean));
+}
+function copyRow(label, text) {
+  const btn = el("button", { class: "ghost small", text: t("copy"), onclick: async () => {
+    try { await navigator.clipboard.writeText(text); btn.textContent = "✅"; setTimeout(() => { btn.textContent = t("copy"); }, 1500); }
+    catch { prompt("", text); }
+  } });
+  return el("div", { class: "copyrow" }, [el("span", { class: "muted", text: label }), el("span", { class: "copytext", text }), btn]);
+}
+function mailBlock(a) {
+  const m = a.mail;
+  const enc = encodeURIComponent;
+  const menu = el("details", { class: "menu" }, [el("summary", { class: "button ghost small", text: t("ag.open_mail") }),
+    el("div", { class: "menu-list" }, [
+      ...MAIL_APPS.map(([name, url]) => el("a", { href: url(enc(m.to), enc(m.subject), enc(m.body)), target: "_blank", rel: "noopener noreferrer",
+        text: name, onclick: () => a.cv_file_id && downloadFile(a.cv_file_id).catch(() => {}) })),
+      el("a", { href: `mailto:${enc(m.to)}?subject=${enc(m.subject)}&body=${enc(m.body)}`, text: t("ag.mail_app"),
+        onclick: () => a.cv_file_id && downloadFile(a.cv_file_id).catch(() => {}) }),
+      el("p", { class: "muted", text: t("ag.attach_note") })])]);
+  return el("div", { class: "mail" }, [copyRow(t("ag.to"), m.to), copyRow(t("ag.subject"), m.subject),
+    el("div", { class: "copyrow multi" }, [el("span", { class: "muted", text: t("ag.body") }), el("pre", { class: "copytext", text: m.body }),
+      el("button", { class: "ghost small", text: t("copy"), onclick: (e) => navigator.clipboard.writeText(m.body).then(() => { e.target.textContent = "✅"; }) })]),
+    el("div", { class: "row", style: "justify-content:flex-start" }, [menu,
+      a.cv_file_id && el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
+      el("button", { class: "ghost small", text: t("ag.edit"), onclick: () => { state.agEditing = a.id; drawAgencies(); } })].filter(Boolean))]);
+}
+function mailEditor(a) {
+  const to = el("input", { type: "text", value: a.mail.to });
+  const subject = el("input", { type: "text", value: a.mail.subject });
+  const body = el("textarea", { rows: 14 });
+  body.value = a.mail.body;
+  return el("div", { class: "mail" }, [el("label", {}, [t("ag.to"), to]), el("label", {}, [t("ag.subject"), subject]), el("label", {}, [t("ag.body"), body]),
+    el("div", { class: "row", style: "justify-content:flex-start" }, [
+      el("button", { class: "small", text: t("save"), onclick: () => { state.agEditing = null;
+        saveAgency(a.id, { mail: { to: to.value.trim(), subject: subject.value.trim(), body: body.value } }); } }),
+      el("button", { class: "ghost small", text: t("cancel"), onclick: () => { state.agEditing = null; drawAgencies(); } })])]);
+}
+function prepBlock(a) {
+  const viaSite = ["platforma", "forma", "baza_kandidata", "samo_oglasi"].includes(a.nacin_prijave) && !a.email;
+  const note = el("textarea", { rows: 3, placeholder: t("ag.note_ph") });
+  note.value = a.note || "";
+  const files = state.files || [];
+  const pick = selectEl([["", t("ag.cv_general")], ...files.map((f) => [f.id, f.name])], a.file_id || "", () => {});
+  const upload = el("input", { type: "file", accept: ".pdf,.docx,.txt", class: "hidden", onchange: async (e) => {
+    try { const f = await uploadFile(e.target.files[0]); await loadFiles(); a.file_id = f.id; await saveAgency(a.id, { file_id: f.id, note: note.value }); }
+    catch (err) { agencyNote(errText(err.code), "error"); drawAgencies(); }
+  } });
+  return el("div", { class: "prep" }, [
+    el("label", {}, [t("ag.note"), note]),
+    el("label", {}, [t("ag.cv_from"), el("div", { class: "row", style: "justify-content:flex-start" }, [pick, upload,
+      el("button", { class: "ghost small", type: "button", text: t("f.add"), onclick: () => upload.click() })])]),
+    el("div", { class: "row", style: "justify-content:flex-start" }, [
+      el("button", { text: viaSite ? t("ag.make_cv") : (a.mail ? t("ag.remake") : t("ag.make_mail")), onclick: async () => {
+        try {
+          await api("POST", "/api/requests", { kind: "agency_mail", target: a.id, note: note.value, file_id: pick.value });
+          agencyNote(t("ag.requested"));
+          await renderAgencies();
+        } catch (e) { agencyNote(errText(e.code), "error"); drawAgencies(); }
+      } }),
+      a.prijava_link && el("a", { class: "button ghost", href: a.prijava_link, target: "_blank", rel: "noopener noreferrer", text: t("ag.apply_site") }),
+    ].filter(Boolean)),
+  ]);
+}
+function agencyCard(a) {
+  const status = selectEl(AG_STATUSES.map((x) => [x, t(`ag.st.${x}`)]), a.status, (v) => saveAgency(a.id, { status: v }), { class: "status" });
+  const parts = [el("div", { class: "row" }, [el("h3", { text: a.name }), status])];
+  if (a.own) parts.push(el("p", { class: "muted", text: [a.email, a.site, a.contact].filter(Boolean).join(" · ") }));
+  if (a.sent_on) parts.push(el("p", { class: "muted", text: `📨 ${t("ag.sent_on")} ${a.sent_on} (${t("ag.days_ago", { n: daysAgo(a.sent_on) })})` }));
+  if (a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS) parts.push(el("p", { class: "warn", text: t("ag.followup_due", { n: daysAgo(a.sent_on) }) }));
+  const info = !a.own && summaryOf(a);
+  if (info) parts.push(a.status === "suggested" ? info : el("details", {}, [el("summary", { class: "muted", text: t("ag.about") }), info]));
+  if (a.status === "suggested") {
+    parts.push(el("div", { class: "row", style: "justify-content:flex-start" }, [
+      el("button", { text: t("ag.want"), onclick: () => { agencyNote(t("ag.moved")); state.agTab = "prep"; saveAgency(a.id, { status: "new" }); } }),
+      el("button", { class: "ghost", text: t("ag.not_interested"), onclick: () => saveAgency(a.id, { status: "dismissed" }) }),
+      a.sajt && el("a", { class: "button ghost", href: a.sajt, target: "_blank", rel: "noopener noreferrer", text: t("ag.site") })].filter(Boolean)));
+  } else if (a.status === "new") {
+    parts.push(prepBlock(a));
+  } else if (a.status === "waiting") {
+    parts.push(el("p", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), " ", t("ag.waiting")]));
+  }
+  if (a.mail && a.status !== "waiting") {
+    const block = state.agEditing === a.id ? mailEditor(a) : mailBlock(a);
+    parts.push(agSection(a.status) === "prep" ? block : el("details", {}, [el("summary", { class: "muted", text: t("ag.sent_mail") }), block]));
+    if (a.status === "ready") parts.push(el("button", { text: t("ag.i_sent"), onclick: () => { state.agTab = "sent"; saveAgency(a.id, { status: "sent" }); } }));
+  }
+  if (a.status === "ready" && !a.mail && a.cv_file_id) {
+    parts.push(el("div", { class: "row", style: "justify-content:flex-start" }, [
+      el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
+      a.prijava_link && el("a", { class: "button ghost small", href: a.prijava_link, target: "_blank", rel: "noopener noreferrer", text: t("ag.apply_site") })].filter(Boolean)));
+  }
+  if (a.own) parts.push(el("button", { class: "danger small", text: t("s.remove"), onclick: async () => {
+    if (!confirm(t("ag.confirm_remove"))) return;
+    await api("DELETE", `/api/agencies/${encodeURIComponent(a.id)}`); delete state.agencies.mine[a.id]; drawAgencies();
+  } }));
+  return el("div", { class: `search ag-card ${a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS ? "changed" : ""}` }, parts);
+}
+function ownAgencyForm() {
+  const f = { name: el("input", { type: "text" }), email: el("input", { type: "email" }), site: el("input", { type: "url", placeholder: "https://" }),
+    contact: el("input", { type: "text" }), note: el("textarea", { rows: 2 }) };
+  return el("div", { class: "card" }, [el("h2", { text: t("ag.add_own") }), el("div", { class: "grid two" }, [
+    el("label", {}, [t("ag.name"), f.name]), el("label", {}, [t("ag.email"), f.email]),
+    el("label", {}, [t("ag.site"), f.site]), el("label", {}, [t("ag.contact"), f.contact])]),
+    el("label", {}, [t("ag.note"), f.note]),
+    el("button", { text: t("ag.add"), onclick: async () => {
+      if (!f.name.value.trim()) return;
+      const r = await api("POST", "/api/agencies", { name: f.name.value, email: f.email.value, site: f.site.value, contact: f.contact.value, note: f.note.value });
+      state.agencies.mine[r.id] = r.agency;
+      state.agTab = "prep";
+      drawAgencies();
+    } })]);
+}
+
 // ---------- account ----------
 function renderAccount() {
   const me = state.me;
+  if (!state.files) loadFiles().then(renderAccount).catch(() => {});
   $("#tab-account").replaceChildren(el("div", { class: "card" }, [
     el("label", {}, [t("acc.name"), el("input", { type: "text", value: state.settings.name || "", oninput: (e) => {
       state.settings.name = e.target.value; markDirty(); $("#savebar").classList.remove("hidden");
@@ -670,7 +914,7 @@ function renderAccount() {
       el("strong", { text: i.provider === "telegram" ? "Telegram" : i.provider }), el("span", { class: "grow", text: i.label }),
       el("span", { class: "muted", text: (i.created_at || "").slice(0, 10) })]))),
     el("p", { class: "muted", text: t("acc.more_soon") }),
-  ]));
+  ]), filesCard());
 }
 
 // ---------- admin ----------
