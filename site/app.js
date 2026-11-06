@@ -308,16 +308,10 @@ function markDirty() {
 function clearDraft() {
   try { localStorage.removeItem(draftKey()); } catch { /* nothing kept */ }
 }
+// changes left unsaved last time are back: the save bar says so; its own Discard button throws them away
 function showRestored() {
-  const s = $("#save-status");
-  s.className = "warn";
-  s.replaceChildren(t("restored"), " ", el("button", { class: "ghost small", text: t("discard_changes"), onclick: () => {
-    clearDraft();
-    state.restored = false;
-    state.settings = structuredClone(state.me.settings || {});
-    state.dirty = false;
-    renderApp();
-  } }));
+  paintSaveStatus();
+  $("#save-status").textContent = t("restored");
 }
 // the draft from last time is shown only if it really differs from what is saved
 function draftDiffers() {
