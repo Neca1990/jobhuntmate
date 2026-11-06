@@ -31,7 +31,7 @@ from .models import Job, fuzzy_key
 from .schedule import TOLERANCE, effective_interval, in_active_window
 from .scoring import score_job
 from .store import ApiStore, FileStore, prune_seen, shared_config
-from .summarize import summarize
+from .summarize import HEALTH, summarize
 from .textutil import parse_date
 
 EMPLOYER_CHECK_BUDGET = 60  # HTTP calls per run for finding postings on company sites
@@ -413,6 +413,7 @@ def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = 
     now = now or datetime.now(timezone.utc)
     store = store or FileStore()
     shared = shared_config(store)
+    HEALTH.reset()
     if only_check:
         return Counter(check_only(store, shared, now))
     gstate = store.load_global()
@@ -442,6 +443,8 @@ def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = 
         stats["sent"] += send_queue(r, shared, gstate, cache, dry_run)
         r.state["last_run"] = now.isoformat()
     stats["sent"] += answer_search_all(asked, store, shared, gstate, cache, runs, now, dry_run, fresh=pool)
+    if HEALTH.used or HEALTH.failed:
+        print(HEALTH.line())
     if dry_run:  # a rehearsal leaves no trace
         print(f"sent {stats['sent']} (dry run, nothing saved)")
         return stats
@@ -457,7 +460,7 @@ def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = 
         if kept:
             print(f"archive: {kept.get('rows')} postings, {kept.get('size_mb')} MB, kept {kept.get('days')} days")
         store.report({"state": "done", "started_at": now.isoformat(), "finished_at": datetime.now(timezone.utc).isoformat(),
-                      "users": len(active), "sent": stats["sent"], "full": full,
+                      "users": len(active), "sent": stats["sent"], "full": full, "summaries": HEALTH.report(),
                       "new": sum(v for k, v in stats.items() if k.endswith(":new") and not k.startswith("archive"))})
     print(f"sent {stats['sent']}")
     return stats

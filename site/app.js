@@ -1607,6 +1607,16 @@ const STALE_MIN = 40;
 let runTimer = 0;
 const minutesSince = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000));
 const clock = (iso) => new Date(iso).toLocaleTimeString(lang() === "sr" ? "sr-Latn-RS" : "en-GB", { hour: "2-digit", minute: "2-digit" });
+// "AI summaries: Gemini 12, Groq 3, without AI 1 · Gemini paused: 429 RESOURCE_EXHAUSTED"
+function aiLine(sum) {
+  if (!sum || !Object.keys(sum.by || {}).length) return null;
+  const name = (k) => ({ gemini: "Gemini", groq: "Groq", none: t("ad.ai_none") })[k] || k;
+  const paused = Object.entries(sum.paused || {});
+  const text = t("ad.ai") + ": " + Object.entries(sum.by).map(([k, v]) => `${name(k)} ${v}`).join(", ") +
+    paused.map(([k, why]) => ` · ${t("ad.ai_paused", { name: name(k), why })}`).join("");
+  return { text, warn: paused.length > 0 || Boolean(sum.by.none) };
+}
+
 async function followRun(box, buttons) {
   clearTimeout(runTimer);
   let run;
@@ -1622,8 +1632,10 @@ async function followRun(box, buttons) {
     runTimer = setTimeout(() => followRun(box, buttons), 5000);
   } else if (run.state === "done") {
     const took = Math.max(1, Math.round((new Date(run.finished_at) - new Date(run.started_at)) / 60000));
+    const ai = aiLine(run.summaries);
     box.replaceChildren((run.full ? `${t("ad.full")} – ` : "") +
-      t("ad.run_done", { at: clock(run.finished_at), min: took, new: run.new ?? 0, sent: run.sent ?? 0, users: run.users ?? 0 }));
+      t("ad.run_done", { at: clock(run.finished_at), min: took, new: run.new ?? 0, sent: run.sent ?? 0, users: run.users ?? 0 }),
+      ...(ai ? [el("br"), el("span", { class: ai.warn ? "warn" : "muted", text: ai.text })] : []));
     box.className = "run-status ok";
   } else if (run.state) {
     box.replaceChildren(t("ad.run_stale"));

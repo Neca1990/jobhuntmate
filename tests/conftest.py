@@ -113,3 +113,10 @@ def fixture_bytes(name):
 
 def fixture_json(name):
     return json.loads((FIX / name).read_text())
+
+
+@pytest.fixture(autouse=True)
+def fresh_summary_health():
+    """Each test starts with no AI provider paused (a run does the same)."""
+    from engine.summarize import HEALTH
+    HEALTH.reset()
