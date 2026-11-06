@@ -13,11 +13,16 @@ export async function createSession(db, userId) {
   return `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${DAYS * 86400}`;
 }
 
-function cookieValue(request) {
+function cookieValue(request, name = COOKIE) {
   const raw = request.headers.get("cookie") || "";
-  const hit = raw.split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`));
-  return hit ? hit.slice(COOKIE.length + 1) : "";
+  const hit = raw.split(/;\s*/).find((c) => c.startsWith(`${name}=`));
+  return hit ? hit.slice(name.length + 1) : "";
 }
+
+// the browser's own random id, kept a year: lets a known browser skip the "is this you?" step at sign-in
+export const DEVICE_COOKIE = "device";
+export const deviceId = (request) => cookieValue(request, DEVICE_COOKIE).replace(/[^\w-]/g, "").slice(0, 64);
+export const deviceCookie = (value) => `${DEVICE_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${365 * 86400}`;
 
 // the signed-in, active user, or null
 export async function currentUser(request, db) {

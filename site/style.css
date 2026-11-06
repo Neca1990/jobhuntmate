@@ -290,3 +290,9 @@ button.go:not(:disabled):hover { transform: translateY(-1px); }
 .chat-code p { margin: 0 0 6px; }
 .chat-code .row { justify-content: flex-start; gap: 12px; }
 .code-big { font-size: 1.6rem; font-weight: 700; letter-spacing: .12em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.who { display: flex; gap: 14px; align-items: center; padding: 14px 16px; margin: 6px 0 12px; border-radius: 14px; background: var(--chip);
+  animation: enter .5s cubic-bezier(.2,.8,.2,1) both; }
+.who p { margin: 0; }
+.who .avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; flex: none;
+  background: linear-gradient(135deg, #3b5bdb, #7048e8); }
+.who-name { font-size: 1.25rem; font-weight: 700; }

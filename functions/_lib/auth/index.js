@@ -87,15 +87,37 @@ export async function approve(db, providerId, rid, subject, number) {
 }
 
 // the browser asks every couple of seconds whether its sign-in was approved
-export async function poll(env, db, token) {
+export async function poll(env, db, token, device = "") {
   const tokenHash = await sha256(String(token || ""));
   const req = await db.prepare("SELECT * FROM login_requests WHERE token_hash = ? AND expires_at > ?").bind(tokenHash, nowIso()).first();
   if (!req) throw new HttpError(400, "login_expired");
   if (!req.approved_at) return { pending: true };
-  return finish(env, db, req);
+  return settle(env, db, req, device);
 }
 
-export async function verify(env, db, token, code) {
+// answered in the provider's app: a browser this identity used before is signed in; any other first asks the person
+// at it "is this you?" (shown with the name the provider gave), so nobody else's answer signs it in unnoticed
+async function settle(env, db, req, device) {
+  if (!req.approved_at) await db.prepare("UPDATE login_requests SET approved_at = ? WHERE token_hash = ?").bind(nowIso(), req.token_hash).run();
+  if (device && await db.prepare("SELECT 1 FROM devices WHERE id_hash = ? AND provider = ? AND subject = ?")
+    .bind(await sha256(device), req.provider, String(req.subject)).first()) return finish(env, db, req, device);
+  const known = await db.prepare("SELECT 1 FROM identities WHERE provider = ? AND subject = ?").bind(req.provider, String(req.subject)).first();
+  return { confirm: true, label: req.label, new_account: !known };
+}
+
+// the person at the browser answers "is this you?"
+export async function confirm(env, db, token, yes, device = "") {
+  const tokenHash = await sha256(String(token || ""));
+  const req = await db.prepare("SELECT * FROM login_requests WHERE token_hash = ? AND expires_at > ? AND approved_at != ''")
+    .bind(tokenHash, nowIso()).first();
+  if (!req) throw new HttpError(400, "login_expired");
+  if (yes) return finish(env, db, req, device);
+  await db.prepare("DELETE FROM login_requests WHERE token_hash = ?").bind(tokenHash).run();
+  await PROVIDERS[req.provider].onRefused?.(env, parse(req.contact, {}));
+  return { cancelled: true };
+}
+
+export async function verify(env, db, token, code, device = "") {
   const tokenHash = await sha256(String(token || ""));
   const req = await db.prepare("SELECT * FROM login_requests WHERE token_hash = ? AND expires_at > ?").bind(tokenHash, nowIso()).first();
   if (!req) throw new HttpError(400, "login_expired");
@@ -105,13 +127,19 @@ export async function verify(env, db, token, code) {
     await db.prepare("UPDATE login_requests SET attempts = attempts + 1 WHERE token_hash = ?").bind(tokenHash).run();
     throw new HttpError(400, "wrong_code");
   }
-  return finish(env, db, req);
+  return settle(env, db, req, device);
 }
 
-async function finish(env, db, req) {
+async function finish(env, db, req, device) {
   await db.prepare("DELETE FROM login_requests WHERE token_hash = ?").bind(req.token_hash).run(); // works once
   const user = await accountFor(env, db, req);
-  return { user, cookie: await createSession(db, user.id) };
+  // this browser is now known for this identity (a new random id when it had none)
+  const id = device || randomToken();
+  const now = nowIso();
+  await db.prepare("INSERT INTO devices (id_hash, provider, subject, first_at, last_at) VALUES (?, ?, ?, ?, ?) " +
+    "ON CONFLICT(id_hash, provider, subject) DO UPDATE SET last_at = excluded.last_at")
+    .bind(await sha256(id), req.provider, String(req.subject), now, now).run();
+  return { user, cookie: await createSession(db, user.id), device: id };
 }
 
 // the account behind this identity; a new one when registration (or an invite) allows it

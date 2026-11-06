@@ -6,7 +6,7 @@ import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js
 import { PRIVACY_VERSION, routes as privacyRoutes } from "./privacy.js";
 import { cardAction, postingsClosed, relabel } from "./cards.js";
 import { isDue } from "./schedule.js";
-import { endSession, requireUser } from "./session.js";
+import { deviceCookie, deviceId, endSession, requireUser } from "./session.js";
 import { HttpError, json, nowIso, parse, readBody, sameSecret } from "./util.js";
 
 const SETTINGS_KEYS = ["name", "language", "country", "notify_via", "channels", "searches", "schedule", "sources_enabled",
@@ -56,17 +56,30 @@ on("POST", "/api/auth/:provider/start", async ({ request, env, db, params }) => 
   return json(await auth.start(env, db, params.provider, { invite: body.invite || "", username: body.username || "" }));
 });
 
+// a finished sign-in sets two cookies: the session, and the browser's own id (see devices)
+function signedIn(r) {
+  if (r.pending) return json({ pending: true });
+  if (r.confirm) return json({ confirm: true, label: r.label, new_account: r.new_account });
+  if (r.cancelled) return json({ cancelled: true });
+  const res = json({ ok: true, role: r.user.role });
+  res.headers.append("set-cookie", r.cookie);
+  res.headers.append("set-cookie", deviceCookie(r.device));
+  return res;
+}
+
 on("POST", "/api/auth/poll", async ({ request, env, db }) => {
   const body = await readBody(request);
-  const r = await auth.poll(env, db, body.token);
-  if (r.pending) return json({ pending: true });
-  return json({ ok: true, role: r.user.role }, 200, { "set-cookie": r.cookie });
+  return signedIn(await auth.poll(env, db, body.token, deviceId(request)));
 });
 
 on("POST", "/api/auth/verify", async ({ request, env, db }) => {
   const body = await readBody(request);
-  const { user, cookie } = await auth.verify(env, db, body.token, body.code);
-  return json({ ok: true, role: user.role }, 200, { "set-cookie": cookie });
+  return signedIn(await auth.verify(env, db, body.token, body.code, deviceId(request)));
+});
+
+on("POST", "/api/auth/confirm", async ({ request, env, db }) => {
+  const body = await readBody(request);
+  return signedIn(await auth.confirm(env, db, body.token, body.yes === true, deviceId(request)));
 });
 
 on("POST", "/api/auth/logout", async ({ request, db }) => json({ ok: true }, 200, { "set-cookie": await endSession(request, db) }));

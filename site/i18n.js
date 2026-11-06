@@ -5,6 +5,9 @@ const TEXT = {
   en: {
     // sign in
     intro: "Sign in with Telegram: our bot asks you to tap a number.", start: "Sign in with Telegram",
+    "confirm.as": "Signing in as", "confirm.new": "A new account will be made for this Telegram.",
+    "confirm.why": "This browser hasn't been used with this Telegram account before. If that's not you (e.g. someone else sent your code), say no.",
+    "confirm.yes": "Yes, that's me", "confirm.no": "No, that's not me", "err.refused": "Sign-in cancelled. Start again with your own Telegram.",
     chat_code_label: "Nothing happened in Telegram? Send the bot this code as a message:",
     username_label: "Signed in here before? Optionally type your Telegram username (e.g. @ana) and press Enter – the bot sends you the number by itself, no need to open it. Works only if you have a Telegram username (Settings → Username). New here? Just tap the button.",
     tap_number: "In Telegram, tap this number:", open_bot: "Open the bot in Telegram",
@@ -163,6 +166,9 @@ const TEXT = {
   },
   sr: {
     intro: "Prijava preko Telegrama: bot te pita da dodirneš broj.", start: "Prijavi se preko Telegrama",
+    "confirm.as": "Prijavljuješ se kao", "confirm.new": "Za ovaj Telegram biće napravljen novi nalog.",
+    "confirm.why": "Ovaj pregledač se do sada nije koristio sa ovim Telegram nalogom. Ako to nisi ti (npr. neko drugi je poslao tvoj kod), klikni „Nisam ja“.",
+    "confirm.yes": "Da, to sam ja", "confirm.no": "Nisam ja", "err.refused": "Prijava je otkazana. Kreni ponovo sa svojim Telegramom.",
     chat_code_label: "Ništa se nije desilo u Telegramu? Pošalji botu ovaj kod kao poruku:",
     username_label: "Prijavljivao si se ranije? Možeš da upišeš svoje Telegram korisničko ime (npr. @ana) i pritisneš Enter – bot će ti sam poslati broj, ne moraš da ga otvaraš. Radi samo ako u Telegramu imaš korisničko ime (Podešavanja → Korisničko ime). Prvi put si ovde? Samo klikni dugme.",
     tap_number: "U Telegramu dodirni ovaj broj:", open_bot: "Otvori bota u Telegramu",

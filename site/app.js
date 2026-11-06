@@ -64,6 +64,7 @@ function showLogin(step = "start") {
   $("#login").classList.remove("hidden");
   $("#step-start").classList.toggle("hidden", step !== "start");
   $("#step-wait").classList.toggle("hidden", step !== "wait");
+  $("#step-confirm").classList.toggle("hidden", step !== "confirm");
   $("#login-error").textContent = "";
 }
 const loginError = (code) => { $("#login-error").textContent = errText(code); };
@@ -91,6 +92,7 @@ async function poll() {
   try {
     const r = await api("POST", "/api/auth/poll", { token: state.login.token });
     if (r.pending) { state.login.timer = setTimeout(poll, 2000); return; }
+    if (r.confirm) { askWho(r); return; }
     await boot();
   } catch (e) {
     loginError(e.code);
@@ -99,13 +101,35 @@ async function poll() {
 }
 $("#verify").addEventListener("click", async () => {
   try {
-    await api("POST", "/api/auth/verify", { token: state.login.token, code: $("#code").value });
+    const r = await api("POST", "/api/auth/verify", { token: state.login.token, code: $("#code").value });
+    clearTimeout(state.login.timer);
+    if (r.confirm) { askWho(r); return; }
     await boot();
   } catch (e) {
     loginError(e.code);
     if (["login_expired", "too_many_attempts"].includes(e.code)) setTimeout(() => showLogin("start"), 2500);
   }
 });
+// a browser new to this Telegram account: the person at it says whether that's them
+function askWho(r) {
+  clearTimeout(state.login.timer);
+  $("#confirm-name").textContent = r.label || "?";
+  $("#confirm-new").classList.toggle("hidden", !r.new_account);
+  showLogin("confirm");
+}
+async function answerWho(yes) {
+  $("#confirm-yes").disabled = $("#confirm-no").disabled = true;
+  try {
+    const r = await api("POST", "/api/auth/confirm", { token: state.login.token, yes });
+    if (r.cancelled) { showLogin("start"); loginError("refused"); return; }
+    await boot();
+  } catch (e) {
+    loginError(e.code);
+    setTimeout(() => showLogin("start"), 2500);
+  } finally { $("#confirm-yes").disabled = $("#confirm-no").disabled = false; }
+}
+$("#confirm-yes").addEventListener("click", () => answerWho(true));
+$("#confirm-no").addEventListener("click", () => answerWho(false));
 $("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#verify").click(); });
 $("#username").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#start").click(); });
 $("#restart").addEventListener("click", () => showLogin("start"));

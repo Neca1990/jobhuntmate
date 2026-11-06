@@ -57,6 +57,13 @@ export async function onStart(env, db, message, token, reach) {
     `⌛ ${brand.name}: this sign-in has expired – start again on the site. / Prijava je istekla – kreni ponovo na sajtu.`);
 }
 
+// the person at the browser said "that's not me": tell whoever answered in Telegram
+export async function onRefused(env, contact) {
+  if (!contact?.chat_id) return;
+  await sendMessage(env, contact.chat_id, `🚫 ${brand.name}: this sign-in was refused on the site. To sign in, open the site on your own device and get your own code.\n` +
+    "Ova prijava je odbijena na sajtu. Ako želiš da se prijaviš, otvori sajt na svom uređaju i napravi svoj kod.").catch(() => {});
+}
+
 // the six-digit code from the site, sent as a plain message (some apps open an existing chat without "/start <token>");
 // a plain "/start" or anything else gets a short how-to
 export async function onText(env, db, message, reach) {

@@ -34,6 +34,8 @@ export function routes(on, { requireUser }) {
         .map((r) => ({ ...r, result: parse(r.result, {}) }))[0] || null,
       search_state: Object.fromEntries((await all("SELECT name, data FROM user_files WHERE user_id = ?")).map((r) => [r.name, parse(r.data, null)])),
       files: await all("SELECT id, kind, name, mime, size, made_by, created_at FROM files WHERE user_id = ? ORDER BY created_at"),
+      known_browsers: await all("SELECT d.provider, d.first_at, d.last_at FROM devices d JOIN identities i ON i.provider = d.provider " +
+        "AND i.subject = d.subject WHERE i.user_id = ? ORDER BY d.last_at"),
     });
   });
 
@@ -47,6 +49,7 @@ export function routes(on, { requireUser }) {
       if ((admins?.n || 0) <= 1) throw new HttpError(400, "last_admin");
     }
     await db.batch([
+      db.prepare("DELETE FROM devices WHERE (provider, subject) IN (SELECT provider, subject FROM identities WHERE user_id = ?)").bind(user.id),
       db.prepare("UPDATE invites SET used_by = 'deleted' WHERE used_by = ?").bind(user.id),
       db.prepare("DELETE FROM users WHERE id = ?").bind(user.id),
     ]);

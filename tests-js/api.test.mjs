@@ -37,7 +37,11 @@ async function signIn(telegramId, invite = "", consent = true) {
   const start = await (await call("POST", "/api/auth/telegram/start", { body: { invite } })).json();
   await webhook(telegramId, `/start ${start.token}`);
   const code = sent.at(-1).body.text.match(/<code>(\d{6})<\/code>/)?.[1];
-  const res = await call("POST", "/api/auth/verify", { body: { token: start.token, code } });
+  let res = await call("POST", "/api/auth/verify", { body: { token: start.token, code } });
+  // a browser new to this Telegram account asks "is this you?" first
+  if (res.status === 200 && (await res.clone().json()).confirm) {
+    res = await call("POST", "/api/auth/confirm", { body: { token: start.token, yes: true } });
+  }
   const cookie = (res.headers.get("set-cookie") || "").split(";")[0];
   // like on the site: the privacy notice is accepted right after the first sign-in
   if (res.status === 200 && consent) await call("POST", "/api/me/consent", { cookie, body: { version: PRIVACY_VERSION } });
@@ -175,10 +179,48 @@ test("tapping the number shown on the site signs the browser in", async () => {
   assert.ok(right);
   assert.deepEqual(await (await call("POST", "/api/auth/poll", { body: { token: start.token } })).json(), { pending: true });
   await tap(OWNER, right);
-  const done = await call("POST", "/api/auth/poll", { body: { token: start.token } });
+  // a browser this Telegram account hasn't used: "is this you?" with the name Telegram gave
+  const ask = await (await call("POST", "/api/auth/poll", { body: { token: start.token } })).json();
+  assert.deepEqual(ask, { confirm: true, label: `@user${OWNER}`, new_account: true });
+  const done = await call("POST", "/api/auth/confirm", { body: { token: start.token, yes: true } });
   assert.equal(done.status, 200);
-  assert.match(done.headers.get("set-cookie"), /^session=/);
+  const cookies = done.headers.getSetCookie();
+  assert.match(cookies[0], /^session=/);
+  assert.match(cookies[1], /^device=[\w-]{20,}; .*Max-Age=31536000/);
   assert.equal((await call("POST", "/api/auth/poll", { body: { token: start.token } })).status, 400); // used up
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM devices").get().n, 1);
+});
+
+// one sign-in from a given browser (device cookie), answered in Telegram by `from`
+async function tappedSignIn(from, device = "") {
+  const start = await (await call("POST", "/api/auth/telegram/start", { body: {} })).json();
+  await webhook(from, `/start ${start.token}`);
+  await tap(from, buttons(sent.at(-1)).find((d) => d.endsWith(`:${start.match}`)));
+  const res = await call("POST", "/api/auth/poll", { body: { token: start.token }, headers: device ? { cookie: `device=${device}` } : {} });
+  return { start, res, body: await res.clone().json() };
+}
+
+test("a known browser signs in without asking; another account on it, or a refusal, is handled", async () => {
+  const first = await tappedSignIn(OWNER);
+  const done = await call("POST", "/api/auth/confirm", { body: { token: first.start.token, yes: true } });
+  const device = done.headers.getSetCookie()[1].match(/^device=([\w-]+)/)[1];
+  // the same Telegram account on the same browser: straight in
+  const again = await tappedSignIn(OWNER, device);
+  assert.equal(again.body.ok, true);
+  assert.match(again.res.headers.getSetCookie()[0], /^session=/);
+  // someone else answers this browser's sign-in (e.g. was given the code): the browser asks, and can say no
+  const other = await tappedSignIn(2002, device);
+  assert.equal(other.body.confirm, true);
+  assert.equal(other.body.label, "@user2002");
+  sent = [];
+  const no = await (await call("POST", "/api/auth/confirm", { body: { token: other.start.token, yes: false } })).json();
+  assert.deepEqual(no, { cancelled: true });
+  assert.equal(sent[0].body.chat_id, 2002);
+  assert.match(sent[0].body.text, /refused on the site/);
+  assert.equal((await call("POST", "/api/auth/confirm", { body: { token: other.start.token, yes: true } })).status, 400); // gone
+  // a "yes" needs a sign-in that was answered in Telegram
+  const fresh = await (await call("POST", "/api/auth/telegram/start", { body: {} })).json();
+  assert.equal((await call("POST", "/api/auth/confirm", { body: { token: fresh.token, yes: true } })).status, 400);
 });
 
 test("a wrong number cancels the sign-in, and someone else's tap does nothing", async () => {
