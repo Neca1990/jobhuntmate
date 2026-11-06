@@ -115,10 +115,14 @@ export function routes(on, { requireUser, requireEngine }) {
     await db.batch([
       db.prepare("UPDATE requests SET status = 'cancelled' WHERE user_id = ? AND target = ? AND status = 'waiting'").bind(user.id, body.target),
       db.prepare("INSERT INTO requests (id, user_id, kind, target, note, file_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .bind(id, user.id, body.kind, String(body.target), String(body.note || "").slice(0, 2000), String(body.file_id || ""), nowIso()),
+        .bind(id, user.id, body.kind, String(body.target), String(body.change ? `CHANGE: ${body.change}` : body.note || "").slice(0, 2000),
+          String(body.file_id || ""), nowIso()),
     ]);
-    await saveMine(db, user.id, body.target, { ...data, status: "waiting", note: String(body.note || data.note || "").slice(0, 2000),
-      file_id: body.file_id || data.file_id || "", requested_at: nowIso() });
+    const change = String(body.change || "").trim().slice(0, 2000); // "make it again, but…" after seeing a version
+    await saveMine(db, user.id, body.target, { ...data, status: "waiting", requested_at: nowIso(),
+      note: change ? data.note || "" : String(body.note || data.note || "").slice(0, 2000),
+      file_id: body.file_id || data.file_id || "", change: change || "",
+      changes: change ? [...(data.changes || []), { at: nowIso(), text: change }] : data.changes || [] });
     return json({ id });
   });
 
@@ -133,7 +137,10 @@ export function routes(on, { requireUser, requireEngine }) {
         : parse((await db.prepare("SELECT data FROM agencies WHERE id = ?").bind(r.target).first())?.data, {});
       const file = r.file_id && await db.prepare("SELECT id, name, size FROM files WHERE id = ? AND user_id = ?").bind(r.file_id, r.user_id).first();
       const s = parse(r.settings, {});
+      const current = r.target.startsWith("own:") ? agency : await mine(db, r.user_id, r.target);
       out.push({ id: r.id, kind: r.kind, target: r.target, note: r.note, created_at: r.created_at, agency, file: file || null,
+        previous: current?.mail || current?.cv_file_id ? { mail: current.mail || null, cv_file_id: current.cv_file_id || "" } : null,
+        user_note: current?.note || "",
         user: { id: r.user_id, name: s.name || "", language: s.language || "en", country: s.country || "" } });
     }
     return json({ requests: out });
@@ -155,6 +162,7 @@ export function routes(on, { requireUser, requireEngine }) {
     if (body.mail) data.mail = { to: String(body.mail.to || ""), subject: String(body.mail.subject || ""), body: String(body.mail.body || "") };
     data.status = "ready";
     data.ready_at = nowIso();
+    data.change = "";
     await saveMine(db, req.user_id, req.target, data);
     await db.prepare("UPDATE requests SET status = 'done', done_at = ? WHERE id = ?").bind(nowIso(), params.id).run();
     return json({ ok: true });

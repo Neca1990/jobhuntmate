@@ -37,7 +37,12 @@ def show(r: dict) -> str:
         if a.get(key):
             lines.append(f"   {key}: {a[key]}")
     if r["note"]:
-        lines.append(f"   note: {r['note']}")
+        lines.append(f"   {'CHANGE REQUESTED' if r['note'].startswith('CHANGE: ') else 'note'}: {r['note'].removeprefix('CHANGE: ')}")
+    if r.get("user_note") and r["note"].startswith("CHANGE: "):
+        lines.append(f"   original note: {r['user_note']}")
+    if r.get("previous"):
+        prev = r["previous"]
+        lines.append(f"   previous version: CV {prev.get('cv_file_id') or '-'}; subject: {(prev.get('mail') or {}).get('subject', '-')}")
     lines.append(f"   start from: {r['file']['name'] + ' (' + r['file']['id'] + ')' if r['file'] else 'the owner’s general CV'}")
     return "\n".join(lines)
 

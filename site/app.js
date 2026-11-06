@@ -680,8 +680,11 @@ async function downloadFile(id) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 // a PDF opens on the page in the browser's viewer; other files (Word) are downloaded
-let previewUrl = "";
-async function previewFile(id, name = "") {
+let previewUrl = "", previewFeedback = null;
+async function previewFile(id, name = "", onFeedback = null) {
+  previewFeedback = onFeedback;
+  $("#preview-feedback").classList.toggle("hidden", !onFeedback);
+  $("#preview-text").value = "";
   const r = await fetch(`/api/files/${encodeURIComponent(id)}`, { credentials: "same-origin" });
   if (!r.ok) return;
   const blob = await r.blob();
@@ -694,6 +697,12 @@ async function previewFile(id, name = "") {
   $("#preview").showModal();
 }
 $("#preview-close").addEventListener("click", () => $("#preview").close());
+$("#preview-send").addEventListener("click", async () => {
+  const text = $("#preview-text").value.trim();
+  if (!text || !previewFeedback) return;
+  $("#preview").close();
+  await previewFeedback(text);
+});
 $("#preview").addEventListener("click", (e) => { if (e.target.id === "preview") e.target.close(); }); // a click beside it
 async function loadFiles() {
   state.files = (await api("GET", "/api/files")).files;
@@ -761,6 +770,20 @@ function agencyList() {
   for (const [id, a] of Object.entries(mine)) if (id.startsWith("own:")) list.push({ ...a, id, own: true, status: a.status || "new" });
   const rank = { da: 0, mozda: 1, ne: 2 };
   return list.sort((x, y) => (rank[x.preporuka] ?? 1) - (rank[y.preporuka] ?? 1) || String(x.name).localeCompare(String(y.name)));
+}
+// "I don't like something": the CV and email are made again with this in mind; the current version stays until then
+async function askChange(a, text) {
+  try {
+    await api("POST", "/api/requests", { kind: "agency_mail", target: a.id, change: text, file_id: a.file_id || "" });
+    agencyNote(t("ag.change_sent"));
+  } catch (e) { agencyNote(errText(e.code), "error"); }
+  await renderAgencies();
+}
+function changeBox(a) {
+  const box = el("details", { class: "change" }, [el("summary", { class: "button ghost small", text: t("ag.ask_change") })]);
+  const text = el("textarea", { rows: 3, placeholder: t("ag.change_ph") });
+  box.append(text, el("button", { class: "small", text: t("ag.send_change"), onclick: () => { if (text.value.trim()) askChange(a, text.value.trim()); } }));
+  return box;
 }
 async function saveAgency(id, change) {
   try {
@@ -841,7 +864,7 @@ function mailBlock(a) {
     el("div", { class: "copyrow multi" }, [el("span", { class: "muted", text: t("ag.body") }), el("pre", { class: "copytext", text: m.body }),
       el("button", { class: "ghost small", text: t("copy"), onclick: (e) => navigator.clipboard.writeText(m.body).then(() => { e.target.textContent = "✅"; }) })]),
     el("div", { class: "row", style: "justify-content:flex-start" }, [menu,
-      a.cv_file_id && el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(a.cv_file_id).catch(() => {}) }),
+      a.cv_file_id && el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(a.cv_file_id, "", a.status === "ready" ? (txt) => askChange(a, txt) : null).catch(() => {}) }),
       a.cv_file_id && el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
       el("button", { class: "ghost small", text: t("ag.edit"), onclick: () => { state.agEditing = a.id; drawAgencies(); } })].filter(Boolean))]);
 }
@@ -901,12 +924,16 @@ function agencyCard(a) {
   } else if (a.status === "new") {
     parts.push(prepBlock(a));
   } else if (a.status === "waiting") {
-    parts.push(el("p", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), " ", t("ag.waiting")]));
+    parts.push(el("p", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), " ", a.change ? t("ag.waiting_change", { text: a.change }) : t("ag.waiting")]));
+    if (a.mail) parts.push(el("details", {}, [el("summary", { class: "muted", text: t("ag.previous") }), mailBlock(a)]));
   }
   if (a.mail && a.status !== "waiting") {
     const block = state.agEditing === a.id ? mailEditor(a) : mailBlock(a);
     parts.push(agSection(a.status) === "prep" ? block : el("details", {}, [el("summary", { class: "muted", text: t("ag.sent_mail") }), block]));
-    if (a.status === "ready") parts.push(el("button", { text: t("ag.i_sent"), onclick: () => { state.agTab = "sent"; saveAgency(a.id, { status: "sent" }); } }));
+    if (a.status === "ready") {
+      parts.push(el("div", { class: "row", style: "justify-content:flex-start;align-items:flex-start" }, [
+        el("button", { text: t("ag.i_sent"), onclick: () => { state.agTab = "sent"; saveAgency(a.id, { status: "sent" }); } }), changeBox(a)]));
+    }
   }
   if (a.status === "ready" && !a.mail && a.cv_file_id) {
     parts.push(el("div", { class: "row", style: "justify-content:flex-start" }, [

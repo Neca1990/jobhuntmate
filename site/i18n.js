@@ -44,6 +44,10 @@ const TEXT = {
     "ag.followup_due": "⏰ {n} days without a reply – time for a follow-up.",
     "ag.add_own": "Add your own agency", "ag.name": "Name", "ag.email": "Email", "ag.contact": "Contact person", "ag.add": "+ Add",
     "ag.confirm_remove": "Remove this agency from your list?",
+    "ag.ask_change": "💬 Ask for changes", "ag.change_ph": "What to change – e.g. shorter email, stress mobile testing, leave out banking",
+    "ag.send_change": "Send", "ag.change_label": "Something you'd like changed in the CV or email?",
+    "ag.change_sent": "✅ Sent – the new version will be here; the current one stays until then.",
+    "ag.waiting_change": "Being redone: \"{text}\"", "ag.previous": "Current version (until the new one is ready)",
     "ag.dismissed_note": "\"{name}\" moved to Closed – you can bring it back from there.", "ag.restore": "↩ Back to suggestions",
     "ag.restored": "✅ \"{name}\" is back in Suggestions.",
 
@@ -148,6 +152,10 @@ const TEXT = {
     "ag.followup_due": "⏰ {n} dana bez odgovora – vreme za follow-up.",
     "ag.add_own": "Dodaj svoju agenciju", "ag.name": "Naziv", "ag.email": "Mejl", "ag.contact": "Kontakt osoba", "ag.add": "+ Dodaj",
     "ag.confirm_remove": "Ukloniti ovu agenciju sa tvoje liste?",
+    "ag.ask_change": "💬 Zatraži izmenu", "ag.change_ph": "Šta da promenim – npr. kraći mejl, istakni mobilno testiranje, izbaci bankarski deo",
+    "ag.send_change": "Pošalji", "ag.change_label": "Nešto ti se ne sviđa u CV-ju ili mejlu?",
+    "ag.change_sent": "✅ Poslato – nova verzija stiže ovde, a trenutna ostaje dok ne stigne.",
+    "ag.waiting_change": "Prepravlja se: „{text}“", "ag.previous": "Trenutna verzija (dok ne stigne nova)",
     "ag.dismissed_note": "„{name}“ je premeštena u Završeno – odatle možeš da je vratiš.", "ag.restore": "↩ Vrati u predloge",
     "ag.restored": "✅ „{name}“ je vraćena u Predloge.",
 

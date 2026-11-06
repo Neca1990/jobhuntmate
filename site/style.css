@@ -144,3 +144,9 @@ a.button:hover { text-decoration: none; }
 .preview::backdrop { background: rgba(0, 0, 0, .55); }
 .preview-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
 .preview iframe { flex: 1; width: 100%; border: 0; background: #525659; }
+.preview-feedback { padding: 10px 14px; border-top: 1px solid var(--border); }
+.preview-feedback label { margin-bottom: 8px; }
+.preview-feedback textarea, .change textarea { width: 100%; margin: 6px 0; }
+.change { margin: 0; flex: 1; min-width: 240px; }
+.change > summary { list-style: none; }
+.change > summary::-webkit-details-marker { display: none; }
