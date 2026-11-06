@@ -43,6 +43,8 @@ const TEXT = {
     "ag.followup_due": "⏰ {n} days without a reply – time for a follow-up.",
     "ag.add_own": "Add your own agency", "ag.name": "Name", "ag.email": "Email", "ag.contact": "Contact person", "ag.add": "+ Add",
     "ag.confirm_remove": "Remove this agency from your list?",
+    "ag.dismissed_note": "\"{name}\" moved to Closed – you can bring it back from there.", "ag.restore": "↩ Back to suggestions",
+    "ag.restored": "✅ \"{name}\" is back in Suggestions.",
 
     sign_out: "Sign out", save: "Save", saved: "✅ Saved. It applies from the next search.", saving: "Saving…",
     unsaved: "You have unsaved changes.", loading: "Loading…",
@@ -144,6 +146,8 @@ const TEXT = {
     "ag.followup_due": "⏰ {n} dana bez odgovora – vreme za follow-up.",
     "ag.add_own": "Dodaj svoju agenciju", "ag.name": "Naziv", "ag.email": "Mejl", "ag.contact": "Kontakt osoba", "ag.add": "+ Dodaj",
     "ag.confirm_remove": "Ukloniti ovu agenciju sa tvoje liste?",
+    "ag.dismissed_note": "„{name}“ je premeštena u Završeno – odatle možeš da je vratiš.", "ag.restore": "↩ Vrati u predloge",
+    "ag.restored": "✅ „{name}“ je vraćena u Predloge.",
 
     sign_out: "Odjavi se", save: "Sačuvaj", saved: "✅ Sačuvano. Važi od sledeće pretrage.", saving: "Čuvam…",
     unsaved: "Imaš nesačuvane izmene.", loading: "Učitavam…",

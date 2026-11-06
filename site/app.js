@@ -861,8 +861,11 @@ function agencyCard(a) {
   if (a.status === "suggested") {
     parts.push(el("div", { class: "row", style: "justify-content:flex-start" }, [
       el("button", { text: t("ag.want"), onclick: () => { agencyNote(t("ag.moved")); state.agTab = "prep"; saveAgency(a.id, { status: "new" }); } }),
-      el("button", { class: "ghost", text: t("ag.not_interested"), onclick: () => saveAgency(a.id, { status: "dismissed" }) }),
+      el("button", { class: "ghost", text: t("ag.not_interested"), onclick: () => { agencyNote(t("ag.dismissed_note", { name: a.name })); saveAgency(a.id, { status: "dismissed" }); } }),
       a.sajt && el("a", { class: "button ghost", href: a.sajt, target: "_blank", rel: "noopener noreferrer", text: t("ag.site") })].filter(Boolean)));
+  } else if (a.status === "dismissed" && !a.own) {
+    parts.push(el("button", { class: "ghost", text: t("ag.restore"), onclick: () => {
+      agencyNote(t("ag.restored", { name: a.name })); state.agTab = "suggested"; saveAgency(a.id, { status: "suggested" }); } }));
   } else if (a.status === "new") {
     parts.push(prepBlock(a));
   } else if (a.status === "waiting") {
