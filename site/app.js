@@ -1340,7 +1340,10 @@ async function exportData(btn, status) {
 // ---------- admin ----------
 async function renderAdmin() {
   const root = $("#tab-admin");
-  root.replaceChildren(el("div", { class: "card muted", text: t("loading") }));
+  // redrawn after a change (new invite, delete…): keep the page where it was instead of jumping to the top
+  const again = root.childElementCount > 0 && !root.querySelector(".loading-card");
+  const y = scrollY;
+  if (!again) root.replaceChildren(el("div", { class: "card muted loading-card", text: t("loading") }));
   let settings, users, invites;
   try {
     [settings, { users }, { invites }] = await Promise.all([api("GET", "/api/admin/settings"), api("GET", "/api/admin/users"), api("GET", "/api/admin/invites")]);
@@ -1440,7 +1443,7 @@ async function renderAdmin() {
           } }),
         ]);
       }))]),
-  );
+  );  if (again) scrollTo(0, y);
 }
 
 // dollar amounts for a dropdown, keeping a saved amount that isn't in the list
