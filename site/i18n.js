@@ -71,6 +71,8 @@ const TEXT = {
     "ob.demo_done": "That's what a new person sees. Nothing was saved (preview).", "acc.need_name": "Type your name in the Account tab first.",
     "ad.demo_onboarding": "👀 Show the welcome steps (preview)", "ad.demo_note": "What a new person sees after signing in – nothing is saved.",
     "ob.where": "Where do you live, and which language do you want?", "ob.what": "What kind of job are you looking for?",
+    "ob.languages": "Which languages do you speak?", "ob.languages_why": "Postings that require a language you don't speak are left out (you can change that in Searches). Add or remove, and set the level.",
+    "s.no_languages": "No languages yet: postings that require one (English too) are left out. Add the ones you speak.",
     "ob.how": "Where should new jobs reach you?", "ob.done": "All set! Right after this I go through all postings of the last 45 days for you – the first ones reach your Telegram in a minute or two. New ones follow with every search.",
     "sa.no_searches": "Save a search first – then this goes through all recent postings for it.",
     // settings
@@ -240,6 +242,8 @@ const TEXT = {
     "ob.demo_done": "To je ono što vidi nova osoba. Ništa nije sačuvano (proba).", "acc.need_name": "Prvo upiši svoje ime u tabu Nalog.",
     "ad.demo_onboarding": "👀 Prikaži uvod (proba)", "ad.demo_note": "Ono što nova osoba vidi posle prijave – ništa se ne čuva.",
     "ob.where": "Gde živiš i na kom jeziku želiš sajt i poruke?", "ob.what": "Kakav posao tražiš?",
+    "ob.languages": "Koje jezike govoriš?", "ob.languages_why": "Oglasi koji traže jezik koji ne govoriš se izostavljaju (to menjaš u Pretragama). Dodaj ili ukloni jezik i podesi nivo.",
+    "s.no_languages": "Nisi naveo nijedan jezik: oglasi koji traže neki jezik (i engleski) se izostavljaju. Dodaj jezike koje govoriš.",
     "ob.how": "Gde da ti stižu novi oglasi?", "ob.done": "Sve je spremno! Odmah posle ovoga pretražujem za tebe sve oglase iz poslednjih 45 dana – prvi stižu na Telegram za minut-dva. Novi stižu sa svakom pretragom.",
     "sa.no_searches": "Prvo sačuvaj pretragu – onda ovo prolazi kroz sve skorašnje oglase za nju.",
     language: "Jezik sajta i poruka", country: "Zemlja u kojoj živiš",

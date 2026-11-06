@@ -181,6 +181,19 @@ const STATUSES = ["pending", "approved", "ready", "sent", "test", "interview", "
 // finished applications move to the archive tab (rejected, skipped, no reply, posting taken down)
 const ARCHIVED = new Set(["rejected", "skipped", "no_reply", "closed"]);
 const DEALBREAKERS = ["language", "residency", "citizenship", "clearance"];
+// the language most people in a country speak natively: a new person starts with it and English, both easy to change
+const NATIVE = { RS: "Serbian", HR: "Croatian", BA: "Bosnian", ME: "Montenegrin", MK: "Macedonian", SI: "Slovenian", HU: "Hungarian",
+  RO: "Romanian", BG: "Bulgarian", PL: "Polish", CZ: "Czech", AT: "German", DE: "German", NL: "Dutch", ES: "Spanish", PT: "Portuguese",
+  GB: "English", US: "English" };
+const LEVELS = ["native", "advanced", "intermediate", "basic", "understood"];
+const langLabel = (name) => (lang() === "sr" ? opt().languages.find((l) => l.name === name)?.label : null) || name;
+function startingLanguages(country) {
+  const list = [{ name: "English", level: "advanced" }];
+  const own = NATIVE[country];
+  if (own === "English") list[0].level = "native";
+  else if (own) list.unshift({ name: own, level: "native" });
+  return list;
+}
 const INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
 // a dropdown of times (every half hour) looks and works the same in every browser, unlike <input type=time>
 const HALF_HOURS = Array.from({ length: 48 }, (_, i) => {
@@ -537,11 +550,26 @@ function cvBlock() {
   return el("div", { class: "search", style: "margin:0 0 14px" }, parts);
 }
 
+// a plain list of languages with levels (the welcome steps; the Searches tab has its own, tracked for unsaved changes)
+function languagesEditor(known, changed) {
+  const add = selectEl([["", t("s.pick_language")], ...opt().languages.filter((l) => !known.some((k) => k.name === l.name))
+    .map((l) => [l.name, langLabel(l.name)]).sort((a, b) => a[1].localeCompare(b[1]))], "", (v) => {
+    if (v) { known.push({ name: v, level: "intermediate" }); changed(); }
+  });
+  return el("div", {}, [
+    el("div", { class: "list" }, known.map((k, i) => el("div", { class: "item" }, [
+      el("span", { class: "grow", text: langLabel(k.name) }),
+      selectEl(LEVELS.map((l) => [l, t(`lvl.${l}`)]), k.level, (v) => { k.level = v; changed(); }),
+      el("button", { class: "danger small", text: t("s.remove"), onclick: () => { known.splice(i, 1); changed(); } }),
+    ]))),
+    el("div", { class: "row", style: "justify-content:flex-start;margin-top:8px" }, [add]),
+  ]);
+}
+
 function renderProfileAndRules(...before) {
   const st = state.settings;
   const known = st.profile.languages;
-  const levels = ["native", "advanced", "intermediate", "basic", "understood"];
-  const langLabel = (name) => (lang() === "sr" ? opt().languages.find((l) => l.name === name)?.label : null) || name;
+  const levels = LEVELS;
   const addLang = selectEl([["", t("s.pick_language")], ...opt().languages.filter((l) => !known.some((k) => k.name === l.name))
     .map((l) => [l.name, langLabel(l.name)]).sort((a, b) => a[1].localeCompare(b[1]))], "", () => {});
   const skillNames = [...new Set(st.searches.flatMap((s) => family(s.family).skills))].sort((a, b) => a.localeCompare(b));
@@ -550,6 +578,7 @@ function renderProfileAndRules(...before) {
     el("h2", { text: t("s.profile") }),
     cvBlock(),
     el("div", { class: "group-title", text: t("s.languages") }),
+    known.length ? null : el("p", { class: "warn", text: t("s.no_languages") }),
     el("div", { class: "list" }, known.map((k, i) => track(el("div", { class: "item" }, [
       el("span", { class: "grow", text: langLabel(k.name) }),
       selectEl(levels.map((l) => [l, t(`lvl.${l}`)]), k.level, (v) => { k.level = v; markDirty(); }),
@@ -654,6 +683,10 @@ function openOnboarding(demo = false) {
   const st = demo ? structuredClone(state.settings) : state.settings;
   if (demo) st.name = "";
   const s = newSearch();
+  st.profile ||= { languages: [], skills: [] };
+  // nobody chose languages yet: English and the country's own, changed below; until touched they follow the country
+  let langsTouched = Boolean(st.profile.languages?.length);
+  if (!langsTouched) st.profile.languages = startingLanguages(st.country || "RS");
   let step = 1;
   const box = $("#onboarding");
   const draw = () => {
@@ -663,8 +696,13 @@ function openOnboarding(demo = false) {
           oninput: (e) => { st.name = e.target.value; } })]),
         el("h2", { text: t("ob.where") }), el("div", { class: "grid" }, [
         el("label", {}, [t("language"), selectEl(LANGS.map((l) => [l, l === "sr" ? "Srpski" : "English"]), lang(), (v) => { changeLang(v); draw(); })]),
-        el("label", {}, [t("country"), selectEl(opt().countries.map((c) => [c.code, c.name]), st.country || "RS", (v) => { st.country = v; s.locations = ["remote"]; draw(); })]),
-      ])],
+        el("label", {}, [t("country"), selectEl(opt().countries.map((c) => [c.code, c.name]), st.country || "RS", (v) => {
+          st.country = v; s.locations = ["remote"];
+          if (!langsTouched) st.profile.languages = startingLanguages(v);
+          draw(); })]),
+      ]),
+        el("h2", { text: t("ob.languages") }), el("p", { class: "muted", text: t("ob.languages_why") }),
+        languagesEditor(st.profile.languages, () => { langsTouched = true; draw(); })],
       2: [el("h2", { text: t("ob.what") }),
         el("label", {}, [t("s.family"), selectEl(opt().families.map((x) => [x.id, nameOf(x)]), s.family, (v) => {
           s.family = v; s.name = nameOf(family(v)); s.specializations = family(v).specializations.map((x) => x.id); draw(); })]),

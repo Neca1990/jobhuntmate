@@ -7,6 +7,22 @@ from email.utils import parsedate_to_datetime
 from typing import Iterable, Optional
 
 
+_MOJIBAKE = re.compile("[\u00c2-\u00f4][\u0080-\u00bf]")
+
+
+def fix_mojibake(s: str) -> str:
+    """UTF-8 text that was read as Latin-1 somewhere upstream ("â\x80\x93" for "–", "Ã©" for "é"): turned back when the
+    whole text converts cleanly; anything else is left as it is."""
+    if not s or not _MOJIBAKE.search(s):
+        return s
+    for codec in ("latin-1", "cp1252"):
+        try:
+            return s.encode(codec).decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+    return s
+
+
 def html_to_text(s: str) -> str:
     if not s:
         return ""

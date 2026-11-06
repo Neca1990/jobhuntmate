@@ -199,7 +199,12 @@ def test_search_everything_answers_from_the_archive_best_first_and_the_rest_foll
     engine_run.run(store, now=later, only_search_all=True)
     assert len(fake_site) == asked
     assert [c for uid, c in tg.cards if uid == "u1"].__len__() == 1
-    assert store.updates[-1] == ("u1", "done", {"found": 2, "days": 45, "sent": 1, "waiting": 1})
+    result = store.updates[-1][2]
+    assert store.updates[-1][:2] == ("u1", "done")
+    assert {k: result[k] for k in ("found", "days", "sent", "waiting")} == {"found": 2, "days": 45, "sent": 1, "waiting": 1}
+    # what the search saw is kept with the result, so "nothing found" can be explained later
+    assert result["diag"]["archive"] == 4 and result["diag"]["new"] == 2 and result["diag"]["no_match"] == 2
+    assert result["diag"]["searches"][0]["family"] == "qa" and "English" in result["diag"]["languages"]
     assert any(uid == "u1" and "45" in text and "1" in text for uid, text in tg.notes)
     # the one left waits in the queue despite its age, and goes with the next regular search
     queue = store.files[("u1", "queue")]
@@ -208,3 +213,43 @@ def test_search_everything_answers_from_the_archive_best_first_and_the_rest_foll
     engine_run.run(store, now=later + timedelta(hours=3))
     assert len([c for uid, c in tg.cards if uid == "u1"]) == 1
     assert store.files[("u1", "queue")] == []
+
+
+def test_a_newcomer_in_a_new_field_gets_their_terms_asked_before_the_archive_is_searched(user, berlin_user, fake_site, monkeypatch):
+    """The archive holds what the sites gave for the others' searches; a site asked by search terms is asked once
+    more, only for the newcomer's terms nobody else searches, and what it gives is matched right away."""
+    from engine import liveness
+    from engine.models import Job
+    tg = FakeChannel()
+    monkeypatch.setitem(channels.CHANNELS, "telegram", tg)
+    monkeypatch.setattr(liveness, "still_open", lambda *a: True)
+    asked = []
+    ml = Job(source="byterms", url="https://example.com/ml-1", title="Senior Machine Learning Engineer", company="Acme",
+             location="Remote", regions=["Worldwide"], remote=True, posted_at=NOW, description_text="Python, PyTorch")
+    by_terms = type("M", (), {"fetch": staticmethod(lambda src, ctx: (asked.append(ctx["terms"]), [ml])[1])})
+    monkeypatch.setitem(engine_run.COLLECTORS, "byterms", by_terms)
+    monkeypatch.setattr(engine_run, "shared_config", lambda store=None: shared(
+        {"sources": fake_sources()["sources"] + [{"id": "byterms", "name": "Board by terms", "min_interval_hours": 2, "by_terms": True}]}))
+    newcomer = {**user, "id": "u9", "searches": [{**user["searches"][0], "family": "ai", "specializations": ["ml"]}]}
+    store = MemoryStore([berlin_user, newcomer])
+    monkeypatch.setattr(store, "search_all_requests", lambda: {"users": ["u9"], "send": 5, "days": 45})
+    before = len(fake_site)
+    engine_run.run(store, now=NOW, only_search_all=True)
+    assert len(fake_site) == before  # sites read the same for everyone aren't visited: their postings are in the archive
+    taxonomy = shared(fake_sources())["taxonomy"]
+    others = set(engine_run.search_terms([engine_run.UserRun(berlin_user, store, NOW, shared(fake_sources()))], taxonomy))
+    assert len(asked) == 1 and asked[0] and not set(asked[0]) & others
+    assert store.updates[-1][2]["found"] == 1 and len([c for uid, c in tg.cards if uid == "u9"]) == 1
+    # once they've had a regular search, a later "search everything" asks no site at all
+    store.files[("u9", "state")] = {"last_run": NOW.isoformat()}
+    engine_run.run(store, now=NOW, only_search_all=True)
+    assert len(asked) == 1
+
+
+def test_text_read_wrongly_upstream_is_put_right():
+    from engine.textutil import fix_mojibake
+    from engine.models import Job
+    assert fix_mojibake("ML Engineer \u00e2\u0080\u0093 vLLM") == "ML Engineer \u2013 vLLM"
+    assert fix_mojibake("Caf\u00c3\u00a9") == "Caf\u00e9"
+    assert fix_mojibake("Inženjer – Beograd") == "Inženjer – Beograd"  # proper text is left alone
+    assert Job(source="x", url="u", title="A \u00e2\u0080\u0093 B", company="c").title == "A \u2013 B"

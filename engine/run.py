@@ -115,6 +115,18 @@ def site_label(sid: str, shared: dict) -> str:
 POOL_TEXT_MAX = 20000  # characters of a posting's text kept in the archive
 
 
+def fetch_context(wanting: list, shared: dict, gstate: dict, now: datetime, deep: bool, terms: list = None) -> dict:
+    taxonomy = shared["taxonomy"]
+    fams = families(wanting)
+    return {"terms": search_terms(wanting, taxonomy) if terms is None else terms, "companies": shared["companies"],
+            "state": gstate, "now": now, "max_age_days": max(r.user.get("max_age_days", 3) for r in wanting), "full": deep,
+            "families": fams,
+            "board_query": " ".join(dict.fromkeys(f.get("board_query") or f["name"] for f in taxonomy["families"]
+                                                  if f["id"] in fams)),
+            "site_terms": {f["id"]: f.get("site_terms") or [f["id"]] for f in taxonomy["families"] if f["id"] in fams},
+            "countries": sorted({r.country_name for r in wanting})}
+
+
 def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, full=False, pool: dict = None) -> Counter:
     """Fetches each due site once and queues its matches for every user who wants that site. Every posting found
     also goes into pool (for the archive), matching or not."""
@@ -132,14 +144,7 @@ def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, 
             stats[f"{sid}:not_due"] += 1
             continue
         deep = full or sid not in last_fetch  # a site's first visit goes through all its postings
-        ctx = {"terms": search_terms(wanting, taxonomy), "companies": companies, "state": gstate, "now": now,
-               "max_age_days": max(r.user.get("max_age_days", 3) for r in wanting), "full": deep,
-               "families": families(wanting),
-               "board_query": " ".join(dict.fromkeys(f.get("board_query") or f["name"] for f in taxonomy["families"]
-                                                     if f["id"] in families(wanting))),
-               "site_terms": {f["id"]: f.get("site_terms") or [f["id"]] for f in taxonomy["families"]
-                              if f["id"] in families(wanting)},
-               "countries": sorted({r.country_name for r in wanting})}
+        ctx = fetch_context(wanting, shared, gstate, now, deep)
         try:
             jobs = COLLECTORS[sid].fetch(src, ctx)
         except BlockedError as e:
@@ -164,6 +169,32 @@ def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, 
                 stats[f"{sid}:{queue_for(run, job, sid, max_age, shared)}"] += 1
         # counts only: the public log must not show what anyone searches for
         print(f"[{site_label(sid, shared)}] fetched {stats[f'{sid}:fetched']}, users {len(wanting)}, new {stats[f'{sid}:new']}")
+    return stats
+
+
+def first_look(newcomers: list, others: list, shared: dict, gstate: dict, now: datetime, pool: dict) -> Counter:
+    """Someone new asks for everything before their first search: the archive only has what the sites gave for
+    everyone else's searches. Sites asked by search terms (by_terms in the site list) are asked once more, just for
+    the terms nobody else searches, so the archive has the newcomer's field too. Nothing is queued here."""
+    stats = Counter()
+    known = set(search_terms(others, shared["taxonomy"]))
+    for src in shared["sources"]["sources"]:
+        sid = src["id"]
+        wanting = [r for r in newcomers if r.wants(src)]
+        terms = [t_ for t_ in search_terms(wanting, shared["taxonomy"]) if t_ not in known]
+        if not src.get("by_terms") or sid not in COLLECTORS or not wanting or not terms:
+            continue
+        try:
+            jobs = COLLECTORS[sid].fetch(src, fetch_context(wanting, shared, gstate, now, True, terms))
+        except Exception as e:  # BlockedError too: the next regular search tries again
+            print(f"[{site_label(sid, shared)}] first look: {type(e).__name__}")
+            continue
+        for job in jobs:
+            d = job.to_dict()
+            d["description_text"] = (d.get("description_text") or "")[:POOL_TEXT_MAX]
+            pool[job.id] = d
+        stats["first_look"] += len(jobs)
+        print(f"[{site_label(sid, shared)}] first look: fetched {len(jobs)}")
     return stats
 
 
@@ -315,26 +346,41 @@ def send_queue(run: UserRun, shared: dict, gstate: dict, cache: Shared, dry_run:
 def search_everything(run: UserRun, pool: list, shared: dict, days: int) -> dict:
     """Matches the whole archive against one user's settings; new matches join their queue, ranked by score."""
     sources = {s["id"]: s for s in shared["sources"]["sources"]}
-    found = []
+    found, outcome, dropped = [], Counter(), Counter()
     for d in pool:
         src = sources.get(d.get("source"))
         if not src or not run.wants(src):
+            outcome["site_off"] += 1
             continue
-        if queue_for(run, Job.from_dict(d), d["source"], FULL_SCAN_MAX_AGE, shared) == "new":
+        job = Job.from_dict(d)
+        what = queue_for(run, job, d["source"], FULL_SCAN_MAX_AGE, shared)
+        outcome[what] += 1
+        if what == "new":
             found.append(run.queue[-1])
+        elif what == "dealbreaker":
+            dropped[run.seen[job.id]["status"].removeprefix("dropped: ")[:60]] += 1
     families = {f["id"]: f for f in run.taxonomy["families"]}
     for item in found:
         item["archive"] = True
         item["rank"] = score_job(Job.from_dict(item["job"]), families[item["match"]["family"]], run.user.get("profile") or {}).score
-    return {"found": len(found), "days": days}
+    # what the search saw, kept with the result in the site's database (never in the public log): so a surprising
+    # "nothing found" can be explained afterwards
+    diag = {"archive": len(pool), **dict(outcome), "dropped": dict(dropped.most_common(8)),
+            "searches": [{k: s_.get(k) for k in ("family", "specializations", "seniority", "locations")}
+                         for s_ in run.user.get("searches", [])],
+            "languages": [l.get("name") for l in (run.user.get("profile") or {}).get("languages", [])],
+            "country": run.country}
+    return {"found": len(found), "days": days, "diag": diag}
 
 
-def answer_search_all(req: dict, store, shared, gstate, cache, runs: list, now: datetime, dry_run: bool) -> int:
-    """The "search everything for me" requests waiting on the site: each gets the best few at once and a note."""
+def answer_search_all(req: dict, store, shared, gstate, cache, runs: list, now: datetime, dry_run: bool,
+                      fresh: dict = None) -> int:
+    """The "search everything for me" requests waiting on the site: each gets the best few at once and a note.
+    fresh: postings found in this run, in case they aren't in the archive yet (a dry run doesn't write them)."""
     todo = [r for r in runs if r.id in req["users"]]
     if not todo:
         return 0
-    pool = store.load_pool()
+    pool = list({**{d["id"]: d for d in store.load_pool()}, **(fresh or {})}.values())
     send, days = req.get("send", 15), req.get("days", 45)
     sent_total = 0
     for r in todo:
@@ -385,6 +431,9 @@ def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = 
         store.report({"state": "running", "started_at": now.isoformat(), "users": len(active), "full": full})
     pool = {}
     stats = collect(active, shared, gstate, now, force=force, full=full, pool=pool) if active else Counter()
+    newcomers = [r for r in runs if r.id in asked["users"] and not r.state.get("last_run")]
+    if newcomers:
+        stats.update(first_look(newcomers, [r for r in runs if r not in newcomers], shared, gstate, now, pool))
     if pool and not dry_run:
         stats["archive:new"] = store.save_pool(list(pool.values()))
         print(f"archive: {stats['archive:new']} new postings")
@@ -392,7 +441,7 @@ def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = 
     for r in active:
         stats["sent"] += send_queue(r, shared, gstate, cache, dry_run)
         r.state["last_run"] = now.isoformat()
-    stats["sent"] += answer_search_all(asked, store, shared, gstate, cache, runs, now, dry_run)
+    stats["sent"] += answer_search_all(asked, store, shared, gstate, cache, runs, now, dry_run, fresh=pool)
     if dry_run:  # a rehearsal leaves no trace
         print(f"sent {stats['sent']} (dry run, nothing saved)")
         return stats

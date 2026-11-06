@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from .textutil import fix_mojibake
+
 
 @dataclass
 class Job:
@@ -27,8 +29,9 @@ class Job:
 
     def __post_init__(self):
         # some APIs ship HTML entities in plain fields ("Côte d&#x27;Ivoire")
-        self.title, self.company, self.location = (html.unescape(x or "").strip()
+        self.title, self.company, self.location = (fix_mojibake(html.unescape(x or "")).strip()
                                                    for x in (self.title, self.company, self.location))
+        self.description_text = fix_mojibake(self.description_text or "")
         self.regions = [html.unescape(r) for r in self.regions]
         if not self.id:
             self.id = job_key(self.source, self.url or f"{self.company}|{self.title}")
