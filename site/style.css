@@ -303,3 +303,10 @@ button.go:not(:disabled):hover { transform: translateY(-1px); }
 .table-wrap.tall { max-height: calc(100vh - 210px); overflow: auto; overscroll-behavior: contain; }
 .table-wrap.tall thead th { position: sticky; top: 0; z-index: 2; background: var(--card); box-shadow: 0 1px 0 var(--border); }
 .table-wrap.tall tr.detail > td { position: sticky; left: 0; }
+.file-groups { display: grid; gap: 14px; }
+.file-group { border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.file-group h3 { margin: 0 0 8px; font-size: .98rem; }
+.file-group .list { margin: 0; }
+.badge { display: inline-block; min-width: 54px; text-align: center; padding: 2px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+.badge.cv { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.badge.letter { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }

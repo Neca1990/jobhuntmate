@@ -243,6 +243,7 @@ function renderApp() {
   $("#tabs").replaceChildren(...tabs.map((x) => el("button", { class: `tab ${x === state.tab ? "active" : ""}`, text: t(`tab.${x}`),
     onclick: () => { state.tab = x; saveView(); scrollTo(0, 0); renderApp(); } })));
   TABS.forEach((x) => $(`#tab-${x}`).classList.toggle("hidden", x !== state.tab));
+  if (state.tab === "account") state.accountVisit = Date.now();
   ({ searches: renderSearches, applications: renderApplications, agencies: renderAgencies, account: renderAccount, admin: renderAdmin })[state.tab]();
   $("#savebar").classList.toggle("hidden", state.tab !== "searches");
   paintSaveStatus();
@@ -943,6 +944,24 @@ async function loadFiles() {
   state.files = (await api("GET", "/api/files")).files;
   return state.files;
 }
+// which application or agency each file was made for, from their CV / letter links (also earlier versions)
+function fileOwners() {
+  const owners = {};
+  const add = (id, label, role) => { if (id && !owners[id]) owners[id] = { label, role }; };
+  for (const a of state.apps || []) {
+    const label = `${a.company || "?"} – ${a.title || "?"}`;
+    add(a.cv_file_id, label, "cv");
+    add(a.letter_file_id, label, "letter");
+    for (const h of a.history || []) { add(h.cv_file_id, label, "cv"); add(h.letter_file_id, label, "letter"); }
+  }
+  const catalog = Object.fromEntries((state.agencies?.catalog || []).map((c) => [c.id, c.name]));
+  for (const [id, m] of Object.entries(state.agencies?.mine || {})) {
+    const label = `${m.name || catalog[id] || id} (${t("tab.agencies")})`;
+    add(m.cv_file_id, label, "cv");
+    for (const h of m.history || []) add(h.cv_file_id, label, "cv");
+  }
+  return owners;
+}
 function filesCard() {
   const status = el("p", { class: "muted", text: t("f.note") });
   const input = el("input", { type: "file", accept: ".pdf,.docx,.txt", class: "hidden", onchange: async (e) => {
@@ -951,21 +970,46 @@ function filesCard() {
     try { await uploadFile(file); await loadFiles(); renderAccount(); }
     catch (err) { status.textContent = errText(err.code); status.className = "error"; }
   } });
-  const files = state.files || [];
+  // the files are grouped by what they were made for, so a CV and letter of one company stay together
+  // (fetched once per visit to the Account tab: the applications list may not have been opened yet)
+  if (state.filesLinkedAt !== state.accountVisit) {
+    state.filesLinkedAt = state.accountVisit;
+    Promise.all([api("GET", "/api/applications"), api("GET", "/api/agencies")]).then(([apps, agencies]) => {
+      state.apps = apps.applications;
+      state.agencies = agencies;
+      if (state.tab === "account") renderAccount();
+    }).catch(() => {});
+  }
+  const owners = fileOwners();
+  const groups = new Map();
+  for (const f of state.files || []) {
+    const o = owners[f.id];
+    const key = o ? o.label : f.made_by === "tailored" ? t("f.other") : t("f.own");
+    if (!groups.has(key)) groups.set(key, { files: [], own: !o && f.made_by !== "tailored", newest: "" });
+    const g = groups.get(key);
+    g.files.push({ ...f, role: o?.role || (f.kind === "letter" ? "letter" : "cv") });
+    if (f.created_at > g.newest) g.newest = f.created_at;
+  }
+  const ordered = [...groups.entries()].sort(([, a], [, b]) => (b.own - a.own) || b.newest.localeCompare(a.newest));
+  const row = (f, label) => el("div", { class: "item" }, [
+    el("span", { class: `badge ${f.role}`, text: t(f.role === "letter" ? "f.letter" : "f.cv") }),
+    el("span", { class: "grow" }, [el("span", { text: f.name.replace(/^.+? – /, "") }), " ",
+      el("span", { class: "muted", text: `${Math.ceil(f.size / 1024)} KB · ${f.created_at.slice(0, 10)}` })]),
+    f.name.toLowerCase().endsWith(".pdf") && el("button", { class: "ghost small", text: t("f.view_any"), onclick: () => previewFile(f.id, f.name).catch(() => {}) }),
+    el("button", { class: "ghost small", text: t("f.download"), onclick: () => downloadFile(f.id).catch(() => {}) }),
+    el("button", { class: "danger small", text: t("s.remove"), onclick: async () => {
+      if (!confirm(label ? t("f.confirm_delete_linked", { what: label }) : t("f.confirm_delete"))) return;
+      await api("DELETE", `/api/files/${encodeURIComponent(f.id)}`); await loadFiles(); renderAccount();
+    } }),
+  ].filter(Boolean));
   return el("div", { class: "card" }, [
     el("div", { class: "row" }, [el("h2", { text: t("f.title") }), el("span", {}, [input,
       el("button", { class: "ghost small", text: t("f.add"), onclick: () => input.click() })])]),
     status,
-    el("div", { class: "list" }, files.length ? files.map((f) => el("div", { class: "item" }, [
-      el("span", { class: "grow" }, [el("strong", { text: f.name }), " ",
-        el("span", { class: "muted", text: `${Math.ceil(f.size / 1024)} KB · ${f.created_at.slice(0, 10)}${f.made_by === "tailored" ? ` · ${t("f.tailored")}` : ""}` })]),
-      f.name.toLowerCase().endsWith(".pdf") && el("button", { class: "ghost small", text: t("f.view"), onclick: () => previewFile(f.id, f.name).catch(() => {}) }),
-      el("button", { class: "ghost small", text: t("f.download"), onclick: () => downloadFile(f.id).catch(() => {}) }),
-      el("button", { class: "danger small", text: t("s.remove"), onclick: async () => {
-        if (!confirm(t("f.confirm_delete"))) return;
-        await api("DELETE", `/api/files/${encodeURIComponent(f.id)}`); await loadFiles(); renderAccount();
-      } }),
-    ])) : [el("p", { class: "muted", text: t("f.none") })]),
+    ordered.length ? el("div", { class: "file-groups" }, ordered.map(([label, g]) => el("div", { class: "file-group" }, [
+      el("h3", { text: label }),
+      el("div", { class: "list" }, g.files.sort((a, b) => (a.role === "cv" ? 0 : 1) - (b.role === "cv" ? 0 : 1)).map((f) => row(f, g.own ? "" : label))),
+    ]))) : el("p", { class: "muted", text: t("f.none") }),
   ]);
 }
 
