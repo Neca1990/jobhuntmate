@@ -409,3 +409,69 @@ test("approving a posting in Telegram asks the scheduler for a quick 'is it stil
   delete env.SCHEDULER;
   assert.deepEqual(asked, [{ check: true }]);
 });
+
+test("search everything for me: limits from the admin page, the scheduler is asked, the search reports back", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  assert.equal((await call("POST", "/api/search-all", { cookie })).status, 400); // nothing to search for yet
+  await call("PUT", "/api/me/settings", { cookie, body: { searches: [{ id: "s1" }] } });
+  const asked = [];
+  env.SCHEDULER = { fetch: async (url, init) => { asked.push(JSON.parse(init.body)); return new Response("{}"); } };
+  let r = await (await call("POST", "/api/search-all", { cookie })).json();
+  assert.equal(r.state, "waiting");
+  assert.equal(r.count_today, 1);
+  assert.deepEqual(asked, [{ search_all: true }]);
+  assert.equal((await call("POST", "/api/search-all", { cookie })).status, 429); // already waiting
+  assert.equal((await (await call("GET", "/api/engine/due", { headers: engine })).json()).due, true);
+  const { users, send } = await (await call("GET", "/api/engine/search-all", { headers: engine })).json();
+  assert.equal(users.length, 1);
+  assert.equal(send, 15);
+  await call("PUT", `/api/engine/search-all/${users[0]}`, { headers: engine, body: { state: "done", result: { found: 40, sent: 15, waiting: 25 } } });
+  r = await (await call("GET", "/api/search-all", { cookie })).json();
+  assert.equal(r.state, "done");
+  assert.equal(r.result.sent, 15);
+  assert.equal(r.blocked, "cooldown"); // 15 minutes between two
+  assert.ok(r.next_at);
+  const res = await call("POST", "/api/search-all", { cookie });
+  assert.equal(res.status, 429);
+  assert.equal((await res.json()).error, "cooldown");
+  // the admin changes the limits: no pause, but only one a day
+  await call("PUT", "/api/admin/settings", { cookie, body: { search_all_cooldown_min: 0, search_all_per_day: 1 } });
+  assert.equal((await (await call("GET", "/api/search-all", { cookie })).json()).blocked, "limit_day");
+  assert.equal((await call("PUT", "/api/admin/settings", { cookie, body: { search_all_per_day: -1 } })).status, 400);
+  delete env.SCHEDULER;
+});
+
+test("the posting archive: only new postings are written, read in pages, old ones dropped, and the safety", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  await call("PUT", "/api/engine/pool", { headers: engine, body: [{ id: "p1", source: "x", title: "QA" }, { id: "p2", source: "x", title: "Dev" }] });
+  const { missing } = await (await call("POST", "/api/engine/pool/known", { headers: engine, body: { ids: ["p1", "p3"] } })).json();
+  assert.deepEqual(missing, ["p3"]);
+  env.DB.raw.prepare("UPDATE pool SET first_seen = '2020-01-01T00:00:00Z' WHERE id = 'p2'").run();
+  const page = await (await call("GET", "/api/engine/pool?limit=1", { headers: engine })).json();
+  assert.deepEqual([page.postings.map((p) => p.id), page.next], [["p1"], "p1"]);
+  sent = [];
+  let state = await (await call("POST", "/api/engine/pool/cleanup", { headers: engine })).json();
+  assert.equal(state.deleted, 1);
+  assert.equal(state.rows, 1);
+  assert.equal(state.days, 45);
+  assert.equal(sent.length, 0);
+  // 360 MB: over the 350 MB alert – the period goes to 30 days and the admin hears about it, once
+  env.DB.fakeSize = 360 * 1024 * 1024;
+  state = await (await call("POST", "/api/engine/pool/cleanup", { headers: engine })).json();
+  assert.equal(state.days, 30);
+  assert.equal(state.level, 1);
+  assert.match(sent.find((m) => m.url.endsWith("/sendMessage")).body.text, /360 MB.*30 dana/);
+  sent = [];
+  await call("POST", "/api/engine/pool/cleanup", { headers: engine });
+  assert.equal(sent.length, 0);
+  // 50 MB more: the next step, 21 days
+  env.DB.fakeSize = 405 * 1024 * 1024;
+  state = await (await call("POST", "/api/engine/pool/cleanup", { headers: engine })).json();
+  assert.equal(state.days, 21);
+  assert.equal(sent.length, 1);
+  const admin = await (await call("GET", "/api/admin/pool", { cookie })).json();
+  assert.equal(admin.settings.pool_days, 21);
+  env.DB.fakeSize = undefined;
+});

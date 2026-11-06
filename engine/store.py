@@ -89,6 +89,27 @@ class FileStore:
     def save_checks(self, user_id: str, checks: list) -> None:
         """Already in the applications saved at the end of the run."""
 
+    def save_pool(self, postings: list) -> int:
+        pool = load_json(self.root / "global" / "pool.json", {})
+        new = [p for p in postings if p["id"] not in pool]
+        pool.update({p["id"]: p for p in new})
+        save_json(self.root / "global" / "pool.json", pool)
+        return len(new)
+
+    def load_pool(self) -> list:
+        return list(load_json(self.root / "global" / "pool.json", {}).values())
+
+    def pool_cleanup(self) -> dict:
+        return {}
+
+    def search_all_requests(self) -> dict:
+        return {"users": load_json(self.root / "global" / "search_all.json", []), "send": 15, "days": 45}
+
+    def search_all_update(self, user_id: str, state: str, result: dict) -> None:
+        if state == "done":
+            save_json(self.root / "global" / "search_all.json",
+                      [u for u in load_json(self.root / "global" / "search_all.json", []) if u != user_id])
+
     def report(self, run: dict) -> None:
         """Where a run stands (the site shows it); nobody to tell locally."""
 
@@ -146,6 +167,33 @@ class ApiStore:
     def save_checks(self, user_id: str, checks: list) -> None:
         """Which waiting postings are still up; the site marks the gone ones and labels their Telegram messages."""
         self._put(f"users/{user_id}/checks", checks)
+
+    def save_pool(self, postings: list) -> int:
+        """Every posting found goes to the archive ("search everything"); only the ones it doesn't have are sent."""
+        by_id = {p["id"]: p for p in postings}
+        missing = post_json(f"{self.base}/pool/known", {"ids": list(by_id)}, timeout=60, headers=self.headers).get("missing", [])
+        for i in range(0, len(missing), 50):
+            self._put("pool", [by_id[k] for k in missing[i:i + 50]])
+        return len(missing)
+
+    def load_pool(self) -> list:
+        out, after = [], ""
+        while True:
+            page = self._get(f"pool?limit=500&after={after}")
+            out += page["postings"]
+            after = page.get("next")
+            if not after:
+                return out
+
+    def pool_cleanup(self) -> dict:
+        return post_json(f"{self.base}/pool/cleanup", {}, timeout=60, headers=self.headers)
+
+    def search_all_requests(self) -> dict:
+        """Who asked for "search everything", how many to send at once, and how many days the archive keeps."""
+        return self._get("search-all")
+
+    def search_all_update(self, user_id: str, state: str, result: dict) -> None:
+        self._put(f"search-all/{user_id}", {"state": state, "result": result})
 
     def save_sources(self, sources: list) -> None:
         """What signed-in users can pick from (the site has no public list of job sites)."""

@@ -73,6 +73,9 @@ FULL POSTING:
         "status.no_reply": "No reply",
         # notices
         "notice.more_waiting": "📬 {n} more postings are waiting – they come in the next round.",
+        "notice.search_all": "🔎 Searched all postings of the last {days} days: {found} match your settings, {sent} sent now."
+                             " The other {waiting} come with the next searches, best first.",
+        "notice.search_all_none": "🔎 Searched all postings of the last {days} days: nothing new matches your settings.",
         "notice.blocked": "⛔ {message}. Skipping it, will try again on schedule.",
     },
     "sr": {
@@ -139,6 +142,9 @@ CEO OGLAS:
         "status.rejected": "Odbijeno",
         "status.no_reply": "Bez odgovora",
         "notice.more_waiting": "📬 Još {n} oglasa čeka – stižu u sledećem krugu.",
+        "notice.search_all": "🔎 Pretražio sam sve oglase iz poslednjih {days} dana: {found} odgovara tvojim podešavanjima, {sent} šaljem sada."
+                             " Ostalih {waiting} stiže sa sledećim pretragama, najbolji prvi.",
+        "notice.search_all_none": "🔎 Pretražio sam sve oglase iz poslednjih {days} dana: nema novih koji odgovaraju tvojim podešavanjima.",
         "notice.blocked": "⛔ {message}. Preskačem i probaću ponovo po rasporedu.",
     },
 }

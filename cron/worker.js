@@ -33,6 +33,8 @@ export default {
     const body = await request.json().catch(() => ({}));
     // a just-approved posting: only "is it still up" (a search already running checks it at its end anyway)
     if (body.check) return Response.json(await dispatch(env, { trigger: "check", check_only: "true" }));
+    // "search everything for me": only the archive, no sites (a search already running takes it at its end)
+    if (body.search_all) return Response.json(await dispatch(env, { trigger: "search-all", search_all: "true" }));
     return Response.json(await dispatch(env, { trigger: body.full ? "admin-full" : "admin", force: "true", full_scan: body.full ? "true" : "false" }));
   },
 };

@@ -2,6 +2,7 @@
 import * as auth from "./auth/index.js";
 import { PROVIDERS } from "./auth/index.js";
 import { routes as agencyRoutes } from "./agencies.js";
+import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js";
 import { cardAction, postingsClosed, relabel } from "./cards.js";
 import { isDue } from "./schedule.js";
 import { endSession, requireUser } from "./session.js";
@@ -15,6 +16,7 @@ const ADMIN_SETTINGS = {
   api_monthly_cap_usd: (v) => typeof v === "number" && v >= 0 && v <= 1000,
   api_user_monthly_cap_usd: (v) => typeof v === "number" && v >= 0 && v <= 1000,
   login_providers: (v) => Array.isArray(v) && v.length > 0 && v.every((p) => p in PROVIDERS),
+  ...POOL_SETTINGS,
 };
 const ENGINE_FILES = ["state", "seen", "queue"];
 
@@ -306,7 +308,10 @@ on("GET", "/api/engine/due", async ({ request, env, db }) => {
   requireEngine(request, env);
   const users = (await db.prepare("SELECT settings FROM users WHERE active = 1").all()).results.map((r) => parse(r.settings, {}));
   const state = parse((await db.prepare("SELECT value FROM global_state WHERE key = 'state'").first())?.value, {});
-  return json(isDue(users, state.last_run, new Date()));
+  const due = isDue(users, state.last_run, new Date());
+  // someone asked for "search everything" and no search has picked it up yet
+  if (!due.due && await searchAllWaiting(db)) return json({ due: true, reason: "search_all", users: 1 });
+  return json(due);
 });
 
 // the job sites, only for signed-in users (the search keeps the list up to date)
@@ -355,3 +360,4 @@ on("PUT", "/api/engine/run", async ({ request, env, db }) => {
 });
 
 agencyRoutes(on, { requireUser, requireEngine });
+poolRoutes(on, { requireUser, requireEngine, requireAdmin });

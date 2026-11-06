@@ -1,7 +1,7 @@
 """One run for everyone: each site is asked once, its postings are matched against every user's searches, and
 each user gets their own matches on their own channels.
 
-  python -m engine.run [--force] [--dry-run] [--full] [--check-only]
+  python -m engine.run [--force] [--dry-run] [--full] [--check-only] [--search-all]
 """
 from __future__ import annotations
 
@@ -112,9 +112,14 @@ def site_label(sid: str, shared: dict) -> str:
     return f"site {ids.index(sid) + 1}" if sid in ids else "site ?"
 
 
-def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, full=False) -> Counter:
-    """Fetches each due site once and queues its matches for every user who wants that site."""
+POOL_TEXT_MAX = 20000  # characters of a posting's text kept in the archive
+
+
+def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, full=False, pool: dict = None) -> Counter:
+    """Fetches each due site once and queues its matches for every user who wants that site. Every posting found
+    also goes into pool (for the archive), matching or not."""
     stats = Counter()
+    pool = {} if pool is None else pool
     taxonomy, companies = shared["taxonomy"], shared["companies"]
     last_fetch = gstate.setdefault("source_last_fetch", {})
     # company boards go last so boards discovered in this run's postings are polled right away
@@ -149,6 +154,10 @@ def collect(runs: list, shared: dict, gstate: dict, now: datetime, force=False, 
         last_fetch[sid] = now.isoformat()
         stats[f"{sid}:fetched"] += len(jobs)
         stats["ats:discovered"] += len(ats.discover(jobs, companies, now))
+        for job in jobs:
+            d = job.to_dict()
+            d["description_text"] = (d.get("description_text") or "")[:POOL_TEXT_MAX]
+            pool[job.id] = d
         max_age = FULL_SCAN_MAX_AGE if deep else src.get("max_age_days")
         for run in wanting:
             for job in jobs:
@@ -226,20 +235,30 @@ class Shared:
         return self.summaries[key]
 
 
-def send_queue(run: UserRun, shared: dict, gstate: dict, cache: Shared, dry_run: bool) -> int:
+def send_queue(run: UserRun, shared: dict, gstate: dict, cache: Shared, dry_run: bool, limit: int = 0,
+               archive_first: bool = False) -> int:
+    """Sends the best of the user's queue: new postings by date, then the ones from the archive ("search everything")
+    by score – or the archive ones first, right after such a search."""
     now = run.now
+    # archive postings are old by nature; they leave the queue when the site took them down, checked before sending
     run.queue[:] = [q for q in run.queue
-                    if not q["job"].get("posted_at")
+                    if q.get("archive") or not q["job"].get("posted_at")
                     or (now - parse_date(q["job"]["posted_at"])).total_seconds() <= q.get("max_age_days", 3) * 86400]
-    run.queue.sort(key=lambda q: q["job"].get("posted_at") or "", reverse=True)
+    run.queue.sort(key=lambda q: (bool(q.get("archive")) == archive_first, q.get("rank", 0), q["job"].get("posted_at") or ""),
+                   reverse=True)
+    sources = {s["id"]: s for s in shared["sources"]["sources"]}
     names = {s["id"]: s["name"] for s in shared["sources"]["sources"]}
     labels = lang_labels(shared["languages"])
     targets = channels.for_user(run.user)
     sent = 0
     for item in list(run.queue):
-        if sent >= run.user.get("max_messages_per_run", 8):
+        if sent >= (limit or run.user.get("max_messages_per_run", 8)):
             break
         job = Job.from_dict(item["job"])
+        if item.get("archive") and liveness.still_open(item["job"], COLLECTORS, sources, now) is False:
+            run.seen.setdefault(job.id, {})["status"] = "gone before sending"
+            run.queue.remove(item)
+            continue
         family = next(f for f in run.taxonomy["families"] if f["id"] == item["match"]["family"])
         warnings = [requirements.Requirement(**w) for w in item.get("warnings", [])]
         skills = cap_score(score_job(job, family, run.user.get("profile") or {}).__dict__, warnings, labels, run.lang)
@@ -293,6 +312,48 @@ def send_queue(run: UserRun, shared: dict, gstate: dict, cache: Shared, dry_run:
     return sent
 
 
+def search_everything(run: UserRun, pool: list, shared: dict, days: int) -> dict:
+    """Matches the whole archive against one user's settings; new matches join their queue, ranked by score."""
+    sources = {s["id"]: s for s in shared["sources"]["sources"]}
+    found = []
+    for d in pool:
+        src = sources.get(d.get("source"))
+        if not src or not run.wants(src):
+            continue
+        if queue_for(run, Job.from_dict(d), d["source"], FULL_SCAN_MAX_AGE, shared) == "new":
+            found.append(run.queue[-1])
+    families = {f["id"]: f for f in run.taxonomy["families"]}
+    for item in found:
+        item["archive"] = True
+        item["rank"] = score_job(Job.from_dict(item["job"]), families[item["match"]["family"]], run.user.get("profile") or {}).score
+    return {"found": len(found), "days": days}
+
+
+def answer_search_all(req: dict, store, shared, gstate, cache, runs: list, now: datetime, dry_run: bool) -> int:
+    """The "search everything for me" requests waiting on the site: each gets the best few at once and a note."""
+    todo = [r for r in runs if r.id in req["users"]]
+    if not todo:
+        return 0
+    pool = store.load_pool()
+    send, days = req.get("send", 15), req.get("days", 45)
+    sent_total = 0
+    for r in todo:
+        if not dry_run:
+            store.search_all_update(r.id, "running", {})
+        result = search_everything(r, pool, shared, days)
+        sent = send_queue(r, shared, gstate, cache, dry_run, limit=send, archive_first=True) if result["found"] else 0
+        waiting_now = sum(1 for q in r.queue if q.get("archive"))
+        result.update(sent=sent, waiting=waiting_now)
+        for name, channel in ([] if dry_run else channels.for_user(r.user)):
+            key = "notice.search_all" if result["found"] else "notice.search_all_none"
+            channel.notify(r.user, t(r.lang, key, days=days, found=result["found"], sent=sent, waiting=waiting_now))
+        if not dry_run:
+            store.search_all_update(r.id, "done", result)
+        sent_total += sent
+    print(f"search everything: {len(todo)} requests, sent {sent_total}")
+    return sent_total
+
+
 def check_only(store, shared, now: datetime) -> dict:
     """Just "is it still up" for the postings due a check (right after an approval): no sites searched."""
     runs = [UserRun(u, store, now, shared) for u in store.users()]
@@ -302,29 +363,36 @@ def check_only(store, shared, now: datetime) -> dict:
 
 
 def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = None, full: bool = False,
-        only_check: bool = False) -> Counter:
+        only_check: bool = False, only_search_all: bool = False) -> Counter:
     now = now or datetime.now(timezone.utc)
     store = store or FileStore()
     shared = shared_config(store)
     if only_check:
         return Counter(check_only(store, shared, now))
     gstate = store.load_global()
-    if not dry_run and shared["sources"]["sources"]:
+    if not dry_run and not only_search_all and shared["sources"]["sources"]:
         store.save_sources([{"id": s["id"], "name": s["name"], "countries": s.get("countries", []),
                              "min_interval_hours": s.get("min_interval_hours", 2), "default": s.get("enabled", True)}
                             for s in shared["sources"]["sources"]])
     runs = [UserRun(u, store, now, shared) for u in store.users()]
-    active = [r for r in runs if r.active(force or full)]
-    print(f"users: {len(runs)}, in their active hours: {len(active)}")
-    if not active:  # e.g. the hourly fallback at night: nothing to do, nothing to report
+    # "search everything" only reads the archive: no sites, whatever the hour
+    active = [] if only_search_all else [r for r in runs if r.active(force or full)]
+    asked = store.search_all_requests()
+    print(f"users: {len(runs)}, in their active hours: {len(active)}, search everything: {len(asked['users'])}")
+    if not active and not asked["users"]:  # e.g. the hourly fallback at night: nothing to do, nothing to report
         return Counter()
-    if not dry_run:
+    if not dry_run and active:
         store.report({"state": "running", "started_at": now.isoformat(), "users": len(active), "full": full})
-    stats = collect(active, shared, gstate, now, force=force, full=full) if active else Counter()
+    pool = {}
+    stats = collect(active, shared, gstate, now, force=force, full=full, pool=pool) if active else Counter()
+    if pool and not dry_run:
+        stats["archive:new"] = store.save_pool(list(pool.values()))
+        print(f"archive: {stats['archive:new']} new postings")
     cache = Shared()
     for r in active:
         stats["sent"] += send_queue(r, shared, gstate, cache, dry_run)
         r.state["last_run"] = now.isoformat()
+    stats["sent"] += answer_search_all(asked, store, shared, gstate, cache, runs, now, dry_run)
     if dry_run:  # a rehearsal leaves no trace
         print(f"sent {stats['sent']} (dry run, nothing saved)")
         return stats
@@ -332,12 +400,16 @@ def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = 
     print(f"postings checked: {stats['checked']}, gone: {stats['closed']}")
     for r in runs:
         r.save()
-    gstate["last_run"] = now.isoformat()
-    store.save_global(gstate)
-    store.save_companies(shared["companies"])
-    store.report({"state": "done", "started_at": now.isoformat(), "finished_at": datetime.now(timezone.utc).isoformat(),
-                  "users": len(active), "sent": stats["sent"], "full": full,
-                  "new": sum(v for k, v in stats.items() if k.endswith(":new"))})
+    if active:
+        gstate["last_run"] = now.isoformat()
+        store.save_global(gstate)
+        store.save_companies(shared["companies"])
+        kept = store.pool_cleanup() or {}
+        if kept:
+            print(f"archive: {kept.get('rows')} postings, {kept.get('size_mb')} MB, kept {kept.get('days')} days")
+        store.report({"state": "done", "started_at": now.isoformat(), "finished_at": datetime.now(timezone.utc).isoformat(),
+                      "users": len(active), "sent": stats["sent"], "full": full,
+                      "new": sum(v for k, v in stats.items() if k.endswith(":new") and not k.startswith("archive"))})
     print(f"sent {stats['sent']}")
     return stats
 
@@ -348,10 +420,12 @@ if __name__ == "__main__":
     p.add_argument("--dry-run", action="store_true", help="print the messages instead of sending them")
     p.add_argument("--full", action="store_true", help="go through all postings, with no age limit")
     p.add_argument("--check-only", action="store_true", help="only check whether waiting postings are still up")
+    p.add_argument("--search-all", action="store_true", help='only the "search everything" requests, from the archive')
     a = p.parse_args()
     # on GitHub the users live in the site's database; locally (and in tests) in data/
     api = os.environ.get("SITE_URL") and os.environ.get("ENGINE_KEY")
     run(ApiStore(os.environ["SITE_URL"], os.environ["ENGINE_KEY"]) if api else FileStore(),
         force=a.force or os.environ.get("FORCE_SEARCH") == "true",
         dry_run=a.dry_run or not os.environ.get("TELEGRAM_BOT_TOKEN"), full=a.full or os.environ.get("FULL_SCAN") == "true",
-        only_check=a.check_only or os.environ.get("CHECK_ONLY") == "true")
+        only_check=a.check_only or os.environ.get("CHECK_ONLY") == "true",
+        only_search_all=a.search_all or os.environ.get("SEARCH_ALL") == "true")

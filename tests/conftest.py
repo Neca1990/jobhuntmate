@@ -77,6 +77,27 @@ class MemoryStore:
     def load_posting(self, job_id):
         return self.postings.get(job_id)
 
+    def save_pool(self, postings):
+        self.pool = getattr(self, "pool", {})
+        new = [p for p in postings if p["id"] not in self.pool]
+        self.pool.update({p["id"]: p for p in new})
+        return len(new)
+
+    def load_pool(self):
+        return list(getattr(self, "pool", {}).values())
+
+    def pool_cleanup(self):
+        self.cleaned = True
+        return {}
+
+    def search_all_requests(self):
+        return {"users": list(getattr(self, "requests", [])), "send": 15, "days": 45}
+
+    def search_all_update(self, user_id, state, result):
+        self.updates = getattr(self, "updates", []) + [(user_id, state, result)]
+        if state == "done":
+            self.requests = [u for u in getattr(self, "requests", []) if u != user_id]
+
     def save_checks(self, user_id, checks):
         self.checks = getattr(self, "checks", []) + [(user_id, c) for c in checks]
 

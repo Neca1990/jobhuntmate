@@ -178,3 +178,32 @@ def test_the_public_github_log_never_names_a_site(user, fake_site, monkeypatch, 
     log = capsys.readouterr().out
     assert "[site 1] fetched" in log
     assert "fake" not in log.lower() and "rsonly" not in log.lower() and "board" not in log.lower()
+
+
+def test_search_everything_answers_from_the_archive_best_first_and_the_rest_follow(user, berlin_user, fake_site, monkeypatch):
+    from datetime import timedelta
+    from engine import liveness
+    tg = FakeChannel()
+    monkeypatch.setitem(channels.CHANNELS, "telegram", tg)
+    store = MemoryStore([berlin_user])
+    engine_run.run(store, now=NOW)
+    assert len(store.pool) == 4  # every posting found is kept, matching anyone or not
+    # a week later a new user asks for everything; no site is visited
+    later = NOW + timedelta(days=7)
+    store._users.append(user)
+    store.requests = ["u1"]
+    monkeypatch.setattr(store, "search_all_requests", lambda: {"users": list(store.requests), "send": 1, "days": 45})
+    monkeypatch.setattr(liveness, "still_open", lambda *a: True)
+    asked = len(fake_site)
+    engine_run.run(store, now=later, only_search_all=True)
+    assert len(fake_site) == asked
+    assert [c for uid, c in tg.cards if uid == "u1"].__len__() == 1
+    assert store.updates[-1] == ("u1", "done", {"found": 2, "days": 45, "sent": 1, "waiting": 1})
+    assert any(uid == "u1" and "45" in text and "1" in text for uid, text in tg.notes)
+    # the one left waits in the queue despite its age, and goes with the next regular search
+    queue = store.files[("u1", "queue")]
+    assert len(queue) == 1 and queue[0]["archive"]
+    monkeypatch.setattr(liveness, "still_open", lambda *a: False)  # ...unless it was taken down meanwhile
+    engine_run.run(store, now=later + timedelta(hours=3))
+    assert len([c for uid, c in tg.cards if uid == "u1"]) == 1
+    assert store.files[("u1", "queue")] == []

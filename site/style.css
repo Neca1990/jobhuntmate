@@ -173,3 +173,4 @@ td.files button { padding: 3px 8px; }
 .followup h4 { margin: 0 0 6px; }
 .followup textarea { width: 100%; }
 tr.detail td > .followup:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+p.small { font-size: .85rem; margin-top: 4px; }

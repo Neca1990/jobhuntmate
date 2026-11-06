@@ -505,8 +505,45 @@ function renderProfileAndRules(...before) {
   const notify = el("div", { class: "card" }, [el("h2", { text: t("n.title") }),
     el("p", {}, [el("strong", { text: `${t("n.telegram")}: ` }), tg ? t("n.telegram_on") : t("n.telegram_off")]),
     el("p", { class: "muted" }, [el("strong", { text: `${t("n.email")}: ` }), t("n.email_soon")])]);
-  $("#tab-searches").replaceChildren(...before, profile, rules, notify);
+  $("#tab-searches").replaceChildren(searchAllCard(), ...before, profile, rules, notify);
   paintDiffs();
+}
+
+// ---- "search everything for me": the whole archive against the saved settings ----
+let searchAllTimer = 0;
+function searchAllCard() {
+  const box = el("div", { class: "card search-all" }, [el("p", { class: "muted", text: t("loading") })]);
+  loadSearchAll(box);
+  return box;
+}
+async function loadSearchAll(box, posted = null) {
+  clearTimeout(searchAllTimer);
+  let s = posted;
+  try { s ||= await api("GET", "/api/search-all"); } catch { return; }
+  if (!box.isConnected) return;
+  const busy = ["waiting", "running"].includes(s.state);
+  const left = Math.max(0, s.per_day - s.count_today);
+  const note = el("p", { role: "status" });
+  const button = el("button", { text: t("sa.button"), disabled: Boolean(s.blocked) || state.dirty, onclick: async () => {
+    button.disabled = true;
+    try { await loadSearchAll(box, await api("POST", "/api/search-all")); }
+    catch (e) { note.textContent = t(`sa.err.${e.code}`) !== `sa.err.${e.code}` ? t(`sa.err.${e.code}`) : errText(e.code); note.className = "error"; button.disabled = false; }
+  } });
+  const why = busy ? "" : s.blocked === "limit_day" ? t("sa.limit_day", { n: s.per_day })
+    : s.blocked === "cooldown" ? t("sa.cooldown", { at: clock(s.next_at) }) : state.dirty ? t("sa.save_first") : "";
+  const r = s.result || {};
+  box.replaceChildren(
+    el("div", { class: "row" }, [el("h2", { text: t("sa.title") }), button]),
+    el("p", { class: "muted", text: t("sa.intro", { days: s.days, n: s.send }) }),
+    busy ? el("p", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), " ", t(s.state === "running" ? "sa.running" : "sa.waiting")])
+      : s.state === "done" && el("p", { class: "ok", text: r.found ? t("sa.done", { at: clock(s.last_at), found: r.found, sent: r.sent, waiting: r.waiting })
+        : t("sa.done_none", { at: clock(s.last_at) }) }),
+    why && el("p", { class: "muted", text: why }),
+    el("p", { class: "muted small", text: t("sa.left", { n: left, of: s.per_day, min: s.cooldown_min }) }),
+    note,
+  );
+  if (busy) searchAllTimer = setTimeout(() => loadSearchAll(box), 5000);
+  else if (s.blocked === "cooldown") searchAllTimer = setTimeout(() => loadSearchAll(box), Math.max(5000, new Date(s.next_at) - Date.now() + 1000));
 }
 
 $("#save").addEventListener("click", async () => {
@@ -1195,6 +1232,26 @@ async function renderAdmin() {
     } catch (e) { runStatus.replaceChildren(errText(e.code)); runStatus.className = "run-status error"; }
     followRun(runStatus, [runBtn, fullBtn]);
   };
+  // the posting archive and "search everything": limits and the safety, with what the archive takes now
+  const nums = (list, cur, unit = "") => [...new Set([...list, cur])].sort((a, b) => a - b).map((n) => [String(n), `${n}${unit}`]);
+  const numSetting = (key, label, list, unit = "") => el("label", {}, [t(label),
+    selectEl(nums(list, settings[key], unit), String(settings[key]), (v) => saveSetting({ [key]: Number(v) }))]);
+  const pool = el("div", { class: "muted", style: "margin-bottom:10px" }, [t("loading")]);
+  api("GET", "/api/admin/pool").then((p) => {
+    pool.replaceChildren(
+      p.at ? t("ad.pool_now", { mb: p.size_mb, rows: p.rows, days: p.days, at: clock(p.at) }) : t("ad.pool_none"),
+      p.level ? el("p", { class: "warn", text: t("ad.pool_shortened", { from: p.shortened_from, days: p.days }) }) : "");
+  }).catch(() => pool.replaceChildren());
+  const poolCard = el("div", { class: "card" }, [el("h2", { text: t("ad.pool") }), pool,
+    el("div", { class: "grid two" }, [
+      numSetting("search_all_per_day", "ad.sa_per_day", [1, 2, 3, 5, 10, 20]),
+      numSetting("search_all_cooldown_min", "ad.sa_cooldown", [0, 5, 10, 15, 30, 60, 120], " min"),
+      numSetting("search_all_send", "ad.sa_send", [5, 10, 15, 20, 30]),
+      numSetting("pool_days", "ad.pool_days", [14, 21, 30, 45, 60, 90]),
+      numSetting("pool_alert_mb", "ad.pool_alert", [200, 250, 300, 350, 400, 450], " MB"),
+      numSetting("pool_step_mb", "ad.pool_step", [25, 50, 75, 100], " MB"),
+    ]),
+    el("p", { class: "muted", text: t("ad.pool_note") })]);
   const runBtn = el("button", { text: t("ad.run_now"), onclick: () => start(false) });
   const fullBtn = el("button", { class: "ghost", text: t("ad.run_full"), onclick: () => start(true) });
   followRun(runStatus, [runBtn, fullBtn]);
@@ -1214,6 +1271,7 @@ async function renderAdmin() {
       ]),
       status,
     ]),
+    poolCard,
     el("div", { class: "card" }, [
       el("div", { class: "row" }, [el("h2", { text: t("ad.invites") }), el("div", { class: "row" }, [note,
         el("button", { class: "ghost small", text: t("ad.new_invite"), onclick: async () => {

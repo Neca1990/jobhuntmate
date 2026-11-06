@@ -17,6 +17,9 @@ on:
       check_only:
         description: only check whether waiting postings are still up
         default: "false"
+      search_all:
+        description: only "search everything" requests, from the archive (no sites)
+        default: "false"
   schedule:
     - cron: "41 * * * *"
 concurrency:
@@ -46,6 +49,7 @@ jobs:
           FULL_SCAN: ${{ inputs.full_scan }}
           FORCE_SEARCH: ${{ inputs.force }}
           CHECK_ONLY: ${{ inputs.check_only }}
+          SEARCH_ALL: ${{ inputs.search_all }}
         run: |
           export SITE_URL=$(python -c "import json; print(json.load(open('config/brand.json'))['site_url'])")
           python -m engine.run
