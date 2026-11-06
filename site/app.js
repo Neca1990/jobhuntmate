@@ -730,19 +730,21 @@ function drawApplications(filter = state.appsFilter || "") {
       } catch (err) { alertRow(err); }
     } }),
   ]);
-  const head = ["a.date", "a.company", "a.title", "a.source", "a.score", "a.status", "a.cv", "a.deadline", "a.notes"].map((k) => el("th", { text: t(k) }));
+  const head = ["a.date", "a.company", "a.title", "a.source", "a.score", "a.status", "a.cv", "a.letter_col", "a.followup_col", "a.deadline", "a.notes"]
+    .map((k) => el("th", { text: t(k) }));
   root.replaceChildren(el("div", { class: "card" }, [
     el("div", { class: "row" }, [el("h2", { text: t("tab.applications") }),
       selectEl([["", t("a.all")], ...tabStatuses.map((s) => [s, t(`st.${s}`)])], filter, (v) => drawApplications(v))]),
     tabs,
     el("p", { class: "error", id: "apps-error" }),
-    rows.length ? el("div", { class: "table-wrap" }, [el("table", {}, [el("thead", {}, [el("tr", {}, head)]),
+    rows.length ? el("div", { class: "table-wrap tall" }, [el("table", {}, [el("thead", {}, [el("tr", {}, head)]),
       el("tbody", {}, rows.flatMap((a) => [el("tr", {}, [
         el("td", { text: (a.created_at || "").slice(0, 10) }), el("td", { text: a.company || "" }),
         el("td", {}, [el("a", { href: a.url, target: "_blank", rel: "noopener noreferrer", text: a.title || "—" })]),
         el("td", { text: a.source || "" }), el("td", { text: a.score ? `${a.score}/10` : "" }),
-        el("td", {}, [statusSelect(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { text: a.deadline || "" }), noteCell(a),
-      ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 9 }, [
+        el("td", {}, [statusSelect(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { class: "files" }, letterCell(a)),
+        el("td", { class: "files" }, followupCell(a)), el("td", { text: a.deadline || "" }), noteCell(a),
+      ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 11 }, [
         a.status === "sent" && appFollowup(a), (a.status !== "sent" || a.cv_state === "ready") && cvDetail(a)].filter(Boolean))])].filter(Boolean)))])])
       : el("p", { class: "muted", text: t(state.appsTab === "archive" ? "a.empty_archive" : "a.empty") }),
   ]));
@@ -756,14 +758,23 @@ function cvCell(a) {
   }
   if (a.cv_state === "waiting") return [el("span", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), ` ${t("a.cv_waiting")}`])];
   if (a.cv_state === "ready") {
-    return [a.status === "sent" && followupButton(a), el("button", { class: "ghost small", text: t("a.view_cv"), onclick: () => previewFile(a.cv_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
-      a.letter_file_id && el("button", { class: "ghost small", text: t("a.view_letter"), onclick: () => previewFile(a.letter_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
-      el("button", { class: "ghost small", text: state.appOpen === a.id ? "▴" : "⋯", title: t("a.more"), onclick: () => toggleOpen(a) })].filter(Boolean);
+    return [el("button", { class: "ghost small", text: t("a.view_cv"), onclick: () => previewFile(a.cv_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
+      el("button", { class: "ghost small", text: state.appOpen === a.id ? "▴" : "⋯", title: t("a.more"), onclick: () => toggleOpen(a) })];
   }
-  if (a.status === "sent") return [followupButton(a)];
-  if (NO_CV.has(a.status)) return [];
+  if (a.status === "sent" || NO_CV.has(a.status)) return [];
   return [el("button", { class: "small", text: t("a.make_cv"), onclick: () => toggleOpen(a) })];
 }
+// the cover letter: the one made, or what the application form says about it
+function letterCell(a) {
+  if (a.letter_file_id) {
+    return [el("button", { class: "ghost small", text: t("a.view_letter"), onclick: () => previewFile(a.letter_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) })];
+  }
+  if (["required", "optional"].includes(a.cover_letter) && !ARCHIVED.has(a.status) && a.status !== "sent") {
+    return [el("span", { class: "muted small", text: t(`a.letter.${a.cover_letter}`) })];
+  }
+  return [];
+}
+const followupCell = (a) => (a.status === "sent" ? [followupButton(a)] : []);
 const sentDays = (a) => (a.applied_on ? daysAgo(a.applied_on) : 0);
 function followupButton(a) {
   const due = sentDays(a) >= FOLLOWUP_DAYS && !a.followup_sent_on && a.followup_state !== "waiting";

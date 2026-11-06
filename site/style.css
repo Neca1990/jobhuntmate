@@ -299,3 +299,7 @@ button.go:not(:disabled):hover { transform: translateY(-1px); }
 .invite-form { display: flex; gap: 10px; align-items: flex-end; margin: 6px 0 14px; flex-wrap: wrap; }
 .invite-form label { margin: 0; min-width: 240px; flex: 1; }
 .invite-form input { width: 100%; }
+/* the table scrolls inside the window: its left-right bar stays at the bottom of the screen, its header at the top */
+.table-wrap.tall { max-height: calc(100vh - 210px); overflow: auto; overscroll-behavior: contain; }
+.table-wrap.tall thead th { position: sticky; top: 0; z-index: 2; background: var(--card); box-shadow: 0 1px 0 var(--border); }
+.table-wrap.tall tr.detail > td { position: sticky; left: 0; }
