@@ -522,7 +522,6 @@ async function loadSearchAll(box, posted = null) {
   try { s ||= await api("GET", "/api/search-all"); } catch { return; }
   if (!box.isConnected) return;
   const busy = ["waiting", "running"].includes(s.state);
-  const left = Math.max(0, s.per_day - s.count_today);
   const note = el("p", { role: "status" });
   const button = el("button", { text: t("sa.button"), disabled: Boolean(s.blocked) || state.dirty, onclick: async () => {
     button.disabled = true;
@@ -539,7 +538,7 @@ async function loadSearchAll(box, posted = null) {
       : s.state === "done" && el("p", { class: "ok", text: r.found ? t("sa.done", { at: clock(s.last_at), found: r.found, sent: r.sent, waiting: r.waiting })
         : t("sa.done_none", { at: clock(s.last_at) }) }),
     why && el("p", { class: "muted", text: why }),
-    el("p", { class: "muted small", text: t("sa.left", { n: left, of: s.per_day, min: s.cooldown_min }) }),
+    el("p", { class: "muted small", text: t("sa.left", { used: s.count_today, of: s.per_day, min: s.cooldown_min }) }),
     note,
   );
   if (busy) searchAllTimer = setTimeout(() => loadSearchAll(box), 5000);
