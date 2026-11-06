@@ -94,6 +94,7 @@ const TEXT = {
     "n.title": "Notifications", "n.telegram": "Telegram", "n.telegram_on": "✅ Connected – new jobs come to your chat with the bot.",
     "n.telegram_off": "Not connected.", "n.email": "Email", "n.email_soon": "Coming soon.",
     // applications
+    "a.closed": "⚠️ Taken down", "a.closed_hint": "The site took this posting down (found {d}) – applying makes no sense any more.",
     "a.cv": "CV", "a.make_cv": "📄 Tailor CV", "a.cv_waiting": "being made", "a.view_cv": "👁 CV", "a.view_letter": "👁 Letter",
     "a.more": "More", "a.download_cv": "📄 Download CV", "a.download_letter": "✉️ Download letter", "a.apply_link": "🔗 Apply",
     "a.cv_note": "Note (what to stress or leave out)", "a.cv_note_ph": "e.g. stress API testing, leave out banking",
@@ -211,6 +212,7 @@ const TEXT = {
     remote: "Remote (rad na daljinu)",
     "n.title": "Obaveštenja", "n.telegram": "Telegram", "n.telegram_on": "✅ Povezan – novi oglasi stižu u razgovor sa botom.",
     "n.telegram_off": "Nije povezan.", "n.email": "Mejl", "n.email_soon": "Uskoro.",
+    "a.closed": "⚠️ Oglas skinut", "a.closed_hint": "Sajt je skinuo ovaj oglas (primećeno {d}) – prijava više nema smisla.",
     "a.cv": "CV", "a.make_cv": "📄 Prilagodi CV", "a.cv_waiting": "u izradi", "a.view_cv": "👁 CV", "a.view_letter": "👁 Pismo",
     "a.more": "Još", "a.download_cv": "📄 Preuzmi CV", "a.download_letter": "✉️ Preuzmi pismo", "a.apply_link": "🔗 Prijava",
     "a.cv_note": "Napomena (šta da istaknem ili izostavim)", "a.cv_note_ph": "npr. istakni testiranje API-ja, izbaci bankarski deo",

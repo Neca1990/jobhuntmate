@@ -1,7 +1,7 @@
 """One run for everyone: each site is asked once, its postings are matched against every user's searches, and
 each user gets their own matches on their own channels.
 
-  python -m engine.run [--force] [--dry-run] [--full]
+  python -m engine.run [--force] [--dry-run] [--full] [--check-only]
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from . import channels, geo, requirements
+from . import channels, geo, liveness, requirements
 from .cards import job_card, short_location
 try:  # the job sites and company-site checks live in a private repository, checked out into engine/plugins
     from .plugins import employer
@@ -58,6 +58,7 @@ class UserRun:
         self.apps = store.load(self.id, "applications")
         self.seen = prune_seen(store.load(self.id, "seen"), now)
         self.queue = store.load(self.id, "queue")
+        self.checks = []  # "is the posting still up" results, saved on their own (the site owns the applications)
         self.fuzzy = {v.get("fuzzy") for v in self.seen.values() if v.get("fuzzy")}
         self.fuzzy |= {fuzzy_key(a.get("company", ""), a.get("title", "")) for a in self.apps}
 
@@ -258,7 +259,7 @@ def send_queue(run: UserRun, shared: dict, gstate: dict, cache: Shared, dry_run:
                 break  # every channel failed: keep the rest for the next run
         run.apps.append({
             "id": job.id, "created_at": now.isoformat(), "applied_on": "", "company": job.company, "title": job.title,
-            "source": source, "url": job.url,
+            "source": source, "source_id": job.source, "url": job.url,
             "employment_type": item["match"].get("employment_type") or job.employment_type,
             "location": short_location(item["job"], run.lang, run.country_name),
             "seniority": item["match"].get("seniority", ""), "score": skills["score"], "status": PENDING,
@@ -284,10 +285,21 @@ def send_queue(run: UserRun, shared: dict, gstate: dict, cache: Shared, dry_run:
     return sent
 
 
-def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = None, full: bool = False) -> Counter:
+def check_only(store, shared, now: datetime) -> dict:
+    """Just "is it still up" for the postings due a check (right after an approval): no sites searched."""
+    runs = [UserRun(u, store, now, shared) for u in store.users()]
+    stats = liveness.check(runs, store, shared, COLLECTORS, now)
+    print(f"postings checked: {stats['checked']}, gone: {stats['closed']}")
+    return stats
+
+
+def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = None, full: bool = False,
+        only_check: bool = False) -> Counter:
     now = now or datetime.now(timezone.utc)
     store = store or FileStore()
     shared = shared_config(store)
+    if only_check:
+        return Counter(check_only(store, shared, now))
     gstate = store.load_global()
     if not dry_run and shared["sources"]["sources"]:
         store.save_sources([{"id": s["id"], "name": s["name"], "countries": s.get("countries", []),
@@ -308,6 +320,8 @@ def run(store=None, force: bool = False, dry_run: bool = False, now: datetime = 
     if dry_run:  # a rehearsal leaves no trace
         print(f"sent {stats['sent']} (dry run, nothing saved)")
         return stats
+    stats.update(liveness.check(runs, store, shared, COLLECTORS, now))
+    print(f"postings checked: {stats['checked']}, gone: {stats['closed']}")
     for r in runs:
         r.save()
     gstate["last_run"] = now.isoformat()
@@ -325,9 +339,11 @@ if __name__ == "__main__":
     p.add_argument("--force", action="store_true", help="search now, whatever the schedule says")
     p.add_argument("--dry-run", action="store_true", help="print the messages instead of sending them")
     p.add_argument("--full", action="store_true", help="go through all postings, with no age limit")
+    p.add_argument("--check-only", action="store_true", help="only check whether waiting postings are still up")
     a = p.parse_args()
     # on GitHub the users live in the site's database; locally (and in tests) in data/
     api = os.environ.get("SITE_URL") and os.environ.get("ENGINE_KEY")
     run(ApiStore(os.environ["SITE_URL"], os.environ["ENGINE_KEY"]) if api else FileStore(),
         force=a.force or os.environ.get("FORCE_SEARCH") == "true",
-        dry_run=a.dry_run or not os.environ.get("TELEGRAM_BOT_TOKEN"), full=a.full or os.environ.get("FULL_SCAN") == "true")
+        dry_run=a.dry_run or not os.environ.get("TELEGRAM_BOT_TOKEN"), full=a.full or os.environ.get("FULL_SCAN") == "true",
+        only_check=a.check_only or os.environ.get("CHECK_ONLY") == "true")

@@ -44,6 +44,8 @@ def show(r: dict) -> str:
         app = r.get("application") or {}
         lines.append(f"   job: {app.get('title', '?')} – {app.get('company', '?')}  ({app.get('source', '')})")
         lines.append(f"   link: {app.get('company_url') or app.get('url', '')}")
+        if app.get("closed_on"):
+            lines.append(f"   ⚠️ POSTING TAKEN DOWN (found {app['closed_on']}) – ask the user before making anything")
         lines.append(f"   cover letter: {'WANTED' if r.get('want_letter') else 'no'}; form says: {app.get('cover_letter') or 'unknown'}"
                      + (f"; deadline {app['deadline']}" if app.get("deadline") else ""))
         if app.get("form_questions"):

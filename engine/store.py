@@ -83,6 +83,12 @@ class FileStore:
     def load_companies(self):
         return load_json(self.root / "global" / "companies.json", None)
 
+    def load_posting(self, job_id: str):
+        return load_json(self.root / "postings" / f"{job_id}.json", None)
+
+    def save_checks(self, user_id: str, checks: list) -> None:
+        """Already in the applications saved at the end of the run."""
+
     def report(self, run: dict) -> None:
         """Where a run stands (the site shows it); nobody to tell locally."""
 
@@ -133,6 +139,13 @@ class ApiStore:
 
     def load_companies(self):
         return self._get("companies")
+
+    def load_posting(self, job_id: str):
+        return self._get(f"postings/{job_id}")
+
+    def save_checks(self, user_id: str, checks: list) -> None:
+        """Which waiting postings are still up; the site marks the gone ones and labels their Telegram messages."""
+        self._put(f"users/{user_id}/checks", checks)
 
     def save_sources(self, sources: list) -> None:
         """What signed-in users can pick from (the site has no public list of job sites)."""

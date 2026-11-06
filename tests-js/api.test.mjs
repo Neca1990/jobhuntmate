@@ -370,3 +370,42 @@ test("follow-up email: for a sent application, without touching the first CV", a
   app = (await (await call("GET", "/api/applications", { cookie })).json()).applications.find((a) => a.id === "job9");
   assert.ok(app.followup_sent_on);
 });
+
+test("postings found taken down: marked, Telegram label, a message for approved ones; approving asks for a check", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  const ref = { telegram: { chat_id: OWNER, message_id: 91 } };
+  await call("PUT", `/api/engine/users/${users[0].id}/applications`, { headers: engine, body: [
+    { id: "gone1", status: "approved", title: "QA Engineer", company: "Acme", refs: ref },
+    { id: "gone2", status: "pending", title: "Tester", company: "Beta", refs: ref },
+    { id: "up1", status: "pending", title: "QA", company: "Gamma" }] });
+  sent = [];
+  const r = await call("PUT", `/api/engine/users/${users[0].id}/checks`, { headers: engine, body: [
+    { id: "gone1", open_checked_at: "2026-11-06T09:00:00Z", closed_on: "2026-11-06" },
+    { id: "gone2", open_checked_at: "2026-11-06T09:00:00Z", closed_on: "2026-11-06" },
+    { id: "up1", open_checked_at: "2026-11-06T09:00:00Z" }, { id: "not-mine", closed_on: "2026-11-06" }] });
+  assert.equal((await r.json()).closed, 2);
+  const apps = (await (await call("GET", "/api/applications", { cookie })).json()).applications;
+  assert.equal(apps.find((a) => a.id === "gone1").closed_on, "2026-11-06");
+  assert.equal(apps.find((a) => a.id === "up1").closed_on, undefined);
+  assert.equal(apps.find((a) => a.id === "up1").open_checked_at, "2026-11-06T09:00:00Z");
+  const labels = sent.filter((m) => m.url.endsWith("/editMessageReplyMarkup")).map((m) => m.body.reply_markup.inline_keyboard[0][0].text);
+  assert.deepEqual(labels, ["⚠️ Posting taken down", "⚠️ Posting taken down"]);
+  const notes = sent.filter((m) => m.url.endsWith("/sendMessage"));
+  assert.equal(notes.length, 1); // only the approved one; a pending one just gets its label
+  assert.match(notes[0].body.text, /QA Engineer – Acme/);
+});
+
+test("approving a posting in Telegram asks the scheduler for a quick 'is it still up' check", async () => {
+  await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  await call("PUT", `/api/engine/users/${users[0].id}/applications`, { headers: engine, body: [{ id: "chk1", status: "pending", title: "QA", company: "Acme" }] });
+  const asked = [];
+  env.SCHEDULER = { fetch: async (url, init) => { asked.push(JSON.parse(init.body)); return new Response("{}"); } };
+  await tap(OWNER, "approve:chk1");
+  await tap(OWNER, "skip:chk1"); // already handled: no second check
+  delete env.SCHEDULER;
+  assert.deepEqual(asked, [{ check: true }]);
+});

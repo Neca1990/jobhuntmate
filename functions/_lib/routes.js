@@ -2,7 +2,7 @@
 import * as auth from "./auth/index.js";
 import { PROVIDERS } from "./auth/index.js";
 import { routes as agencyRoutes } from "./agencies.js";
-import { cardAction, relabel } from "./cards.js";
+import { cardAction, postingsClosed, relabel } from "./cards.js";
 import { isDue } from "./schedule.js";
 import { endSession, requireUser } from "./session.js";
 import { HttpError, json, nowIso, parse, readBody, sameSecret } from "./util.js";
@@ -229,6 +229,24 @@ on("PUT", "/api/engine/users/:id/:name", async ({ request, env, db, params }) =>
   requireEngine(request, env);
   const data = await readBody(request, 5 * 1024 * 1024);
   const now = nowIso();
+  if (params.name === "checks") {
+    // "is the posting still up": only these two fields, on postings the user still has
+    const closed = [];
+    for (const c of (Array.isArray(data) ? data : []).slice(0, 200)) {
+      const row = await db.prepare("SELECT data, updated_at FROM applications WHERE user_id = ? AND id = ?").bind(params.id, String(c.id)).first();
+      if (!row) continue;
+      const app = parse(row.data, {});
+      app.open_checked_at = String(c.open_checked_at || now);
+      if (c.closed_on && !app.closed_on) { app.closed_on = String(c.closed_on).slice(0, 10); closed.push(app); }
+      await db.prepare("UPDATE applications SET data = ?, updated_at = ? WHERE user_id = ? AND id = ?")
+        .bind(JSON.stringify(app), c.closed_on ? now : row.updated_at || now, params.id, String(c.id)).run();
+    }
+    if (closed.length) {
+      const settings = parse((await db.prepare("SELECT settings FROM users WHERE id = ?").bind(params.id).first())?.settings, {});
+      await postingsClosed(env, closed, settings);
+    }
+    return json({ closed: closed.length });
+  }
   if (params.name === "applications") {
     // the engine adds postings; statuses the user changed meanwhile on the site win for existing ones
     const have = new Set((await db.prepare("SELECT id FROM applications WHERE user_id = ?").bind(params.id).all())

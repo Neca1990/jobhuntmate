@@ -74,6 +74,12 @@ class MemoryStore:
     def save_companies(self, companies):
         pass
 
+    def load_posting(self, job_id):
+        return self.postings.get(job_id)
+
+    def save_checks(self, user_id, checks):
+        self.checks = getattr(self, "checks", []) + [(user_id, c) for c in checks]
+
 
 @pytest.fixture
 def now():

@@ -14,6 +14,9 @@ on:
       force:
         description: search now, even outside the users' active hours
         default: "false"
+      check_only:
+        description: only check whether waiting postings are still up
+        default: "false"
   schedule:
     - cron: "41 * * * *"
 concurrency:
@@ -42,6 +45,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           FULL_SCAN: ${{ inputs.full_scan }}
           FORCE_SEARCH: ${{ inputs.force }}
+          CHECK_ONLY: ${{ inputs.check_only }}
         run: |
           export SITE_URL=$(python -c "import json; print(json.load(open('config/brand.json'))['site_url'])")
           python -m engine.run

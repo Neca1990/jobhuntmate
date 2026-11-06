@@ -31,6 +31,8 @@ export default {
     if (request.method !== "POST" || new URL(request.url).pathname !== "/run") return new Response("scheduler");
     if ((request.headers.get("authorization") || "") !== `Bearer ${env.ENGINE_KEY}`) return new Response("forbidden", { status: 403 });
     const body = await request.json().catch(() => ({}));
+    // a just-approved posting: only "is it still up" (a search already running checks it at its end anyway)
+    if (body.check) return Response.json(await dispatch(env, { trigger: "check", check_only: "true" }));
     return Response.json(await dispatch(env, { trigger: body.full ? "admin-full" : "admin", force: "true", full_scan: body.full ? "true" : "false" }));
   },
 };

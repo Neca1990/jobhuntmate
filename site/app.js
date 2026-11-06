@@ -633,6 +633,9 @@ function drawApplications(filter = state.appsFilter || "") {
 const NO_CV = new Set(["pending", "skipped", "rejected", "no_reply"]);
 const toggleOpen = (a) => { state.appOpen = state.appOpen === a.id ? null : a.id; drawApplications(); };
 function cvCell(a) {
+  if (a.closed_on && ["pending", "approved", "ready"].includes(a.status)) {
+    return [el("span", { class: "warn", title: t("a.closed_hint", { d: a.closed_on }), text: t("a.closed") })];
+  }
   if (a.cv_state === "waiting") return [el("span", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), ` ${t("a.cv_waiting")}`])];
   if (a.cv_state === "ready") {
     return [a.status === "sent" && followupButton(a), el("button", { class: "ghost small", text: t("a.view_cv"), onclick: () => previewFile(a.cv_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
