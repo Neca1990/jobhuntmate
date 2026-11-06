@@ -10,8 +10,37 @@
 <body>
   <div id="loader" class="loader" role="status" aria-label="Loading"><div class="spinner"></div></div>
 
-  <div id="login" class="center hidden">
-    <div class="login">
+  <!-- signing in and accepting the privacy notice share one screen: an animated side and the step on the other -->
+  <div id="welcome" class="consent hidden">
+    <!-- the left side is decoration: postings found, scored and sent, with the data staying private -->
+    <div class="consent-hero" aria-hidden="true">
+      <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+      <div class="radar">
+        <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+        <span class="sweep"></span>
+        <span class="lens">🔎</span>
+      </div>
+      <div class="flow">
+        <div class="jobcard c1"><b>QA Engineer</b><span>Remote · <em>8/10</em></span></div>
+        <div class="jobcard c2"><b>Data Analyst</b><span>Hybrid · <em>7/10</em></span></div>
+        <div class="jobcard c3"><b>Frontend Developer</b><span>EU · <em>9/10</em></span></div>
+        <div class="jobcard c4"><b>DevOps Engineer</b><span>Remote · <em>8/10</em></span></div>
+      </div>
+      <div class="hero-text">
+        <h2 data-brand-name></h2>
+        <p data-t="consent.hero"></p>
+      </div>
+      <div class="shield"><span class="lock">🔒</span> <span data-t="consent.badge"></span></div>
+    </div>
+
+    <div class="consent-side">
+      <div id="login" class="consent-panel login-panel hidden">
+        <ol class="steps">
+          <li class="now"><span class="dot">1</span><span data-t="consent.step1"></span></li>
+          <li><span class="dot">2</span><span data-t="consent.step2"></span></li>
+          <li><span class="dot">3</span><span data-t="consent.step3"></span></li>
+        </ol>
+
       <div class="lang" data-lang-switch></div>
       <h1 data-brand-name></h1>
       <p class="muted" data-brand-tagline></p>
@@ -36,33 +65,8 @@
       </section>
       <p class="error" id="login-error" role="alert"></p>
       <p class="muted small"><a href="/privacy.html" target="_blank" rel="noopener" data-t="privacy_link"></a></p>
-    </div>
-  </div>
-
-  <div id="consent" class="consent hidden">
-    <!-- the left side is decoration: postings found, scored and sent, with the data staying private -->
-    <div class="consent-hero" aria-hidden="true">
-      <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-      <div class="radar">
-        <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
-        <span class="sweep"></span>
-        <span class="lens">🔎</span>
-      </div>
-      <div class="flow">
-        <div class="jobcard c1"><b>QA Engineer</b><span>Remote · <em>8/10</em></span></div>
-        <div class="jobcard c2"><b>Data Analyst</b><span>Hybrid · <em>7/10</em></span></div>
-        <div class="jobcard c3"><b>Frontend Developer</b><span>EU · <em>9/10</em></span></div>
-        <div class="jobcard c4"><b>DevOps Engineer</b><span>Remote · <em>8/10</em></span></div>
-      </div>
-      <div class="hero-text">
-        <h2 data-brand-name></h2>
-        <p data-t="consent.hero"></p>
-      </div>
-      <div class="shield"><span class="lock">🔒</span> <span data-t="consent.badge"></span></div>
-    </div>
-
-    <div class="consent-side">
-      <div class="consent-panel">
+          </div>
+      <div id="consent" class="consent-panel hidden">
         <ol class="steps">
           <li class="done"><span class="dot">✓</span><span data-t="consent.step1"></span></li>
           <li class="now"><span class="dot">2</span><span data-t="consent.step2"></span></li>

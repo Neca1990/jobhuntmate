@@ -282,3 +282,7 @@ button.go:not(:disabled):hover { transform: translateY(-1px); }
   .steps { font-size: .74rem; }
   .steps li:not(:last-child)::after { min-width: 10px; }
 }
+.login-panel h1 { font-size: 1.9rem; }
+.login-panel .lang { float: right; }
+.login-panel input { width: 100%; }
+.login-panel .wide { display: block; width: 100%; margin-top: 12px; padding: 12px 14px; }

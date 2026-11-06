@@ -59,6 +59,8 @@ function showLogin(step = "start") {
   clearTimeout(state.login.timer);
   $("#loader").classList.add("hidden");
   $("#app").classList.add("hidden");
+  $("#welcome").classList.remove("hidden");
+  $("#consent").classList.add("hidden");
   $("#login").classList.remove("hidden");
   $("#step-start").classList.toggle("hidden", step !== "start");
   $("#step-wait").classList.toggle("hidden", step !== "wait");
@@ -159,7 +161,7 @@ async function boot() {
   state.settings.language = lang();
   state.dirty = Boolean(state.restored);
   $("#loader").classList.add("hidden");
-  $("#login").classList.add("hidden");
+  $("#welcome").classList.add("hidden");
   $("#app").classList.remove("hidden");
   paintStatic();
   renderApp();
@@ -171,6 +173,7 @@ function showConsent() {
   $("#loader").classList.add("hidden");
   $("#login").classList.add("hidden");
   $("#app").classList.add("hidden");
+  $("#welcome").classList.remove("hidden");
   $("#consent").classList.remove("hidden");
   paintStatic();
   const check = $("#consent-check"), accept = $("#consent-accept");
