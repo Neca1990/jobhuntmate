@@ -344,3 +344,29 @@ test("a tailored CV and cover letter for a job posting: request, owner's side, r
   assert.equal(app.history.length, 1);
   assert.notEqual(app.history[0].cv_file_id, app.cv_file_id);
 });
+
+test("follow-up email: for a sent application, without touching the first CV", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  await call("PUT", `/api/engine/users/${users[0].id}/applications`, { headers: engine,
+    body: [{ id: "job9", status: "approved", title: "QA Lead", company: "Zeta" }] });
+  await call("PATCH", "/api/applications/job9", { cookie, body: { status: "sent" } });
+  let app = (await (await call("GET", "/api/applications", { cookie })).json()).applications.find((a) => a.id === "job9");
+  assert.equal(app.applied_on, new Date().toISOString().slice(0, 10));
+  await call("POST", "/api/requests", { cookie, body: { kind: "job_followup", target: "job9", note: "short and polite" } });
+  const r = (await (await call("GET", "/api/engine/requests", { headers: engine })).json()).requests.find((x) => x.target === "job9");
+  assert.equal(r.kind, "job_followup");
+  assert.equal(r.followup_note, "short and polite");
+  sent = [];
+  await call("PUT", `/api/engine/requests/${r.id}`, { headers: engine, body: { mail: { to: "hr@zeta.test", subject: "Following up", body: "Hi" } } });
+  app = (await (await call("GET", "/api/applications", { cookie })).json()).applications.find((a) => a.id === "job9");
+  assert.equal(app.followup_state, "ready");
+  assert.equal(app.followup_mail.subject, "Following up");
+  assert.equal(app.status, "sent");
+  assert.equal(app.history, undefined);
+  assert.match(sent.find((m) => m.url.endsWith("/sendMessage")).body.text, /follow-up email for QA Lead – Zeta/);
+  await call("PATCH", "/api/applications/job9", { cookie, body: { followup_sent: true } });
+  app = (await (await call("GET", "/api/applications", { cookie })).json()).applications.find((a) => a.id === "job9");
+  assert.ok(app.followup_sent_on);
+});

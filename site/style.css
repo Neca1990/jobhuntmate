@@ -169,3 +169,7 @@ td.files .button, td.files button { margin: 0 4px 4px 0; }
 #tab-applications .card { max-width: 1240px; }
 #tab-applications td:first-child, td.files { white-space: nowrap; }
 td.files button { padding: 3px 8px; }
+.followup { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.followup h4 { margin: 0 0 6px; }
+.followup textarea { width: 100%; }
+tr.detail td > .followup:first-child { border-top: 0; margin-top: 0; padding-top: 0; }

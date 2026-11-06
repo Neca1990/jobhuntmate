@@ -8,7 +8,7 @@ import { HttpError, json, nowIso, parse, readBody } from "./util.js";
 const MAX_FILE = 1_500_000; // bytes; the database keeps up to ~2 MB in one row
 const MIMES = { pdf: "application/pdf", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   txt: "text/plain" };
-const AGENCY_KEYS = ["status", "note", "file_id", "mail", "followup_mail", "sent_on", "followup_requested", "followup_sent_on"];
+const AGENCY_KEYS = ["status", "note", "file_id", "mail", "followup_mail", "sent_on", "followup_sent_on"];
 const OWN_KEYS = ["name", "email", "site", "contact", "language"];
 const STATUSES = ["suggested", "new", "waiting", "ready", "sent", "replied", "interview", "no_reply", "rejected", "dismissed"];
 
@@ -57,11 +57,14 @@ async function tellUser(env, db, req, data) {
   const chat = settings.channels?.telegram?.chat_id;
   const sr = settings.language === "sr";
   if (req.kind === "job_cv") await relabel(env, data, settings.language);
+  if (req.kind === "agency_followup" && !data.name) {
+    data.name = parse((await db.prepare("SELECT data FROM agencies WHERE id = ?").bind(req.target).first())?.data, {}).name || "";
+  }
   if (!chat) return;
-  const what = req.kind === "job_cv" ? `${data.title || ""} – ${data.company || ""}` : data.name || "";
-  const text = (sr ? `📄 Spremno: CV${data.letter_file_id ? " i propratno pismo" : ""}${data.mail ? " i mejl" : ""} za ${what}.`
-    : `📄 Ready: your CV${data.letter_file_id ? " and cover letter" : ""}${data.mail ? " and email" : ""} for ${what}.`) +
-    `\n${brand.site_url}`;
+  const what = req.kind.startsWith("job") ? `${data.title || ""} – ${data.company || ""}` : data.name || req.target;
+  const text = (req.kind.endsWith("_followup") ? (sr ? `✍️ Spreman je follow-up mejl za ${what}.` : `✍️ Your follow-up email for ${what} is ready.`)
+    : sr ? `📄 Spremno: CV${data.letter_file_id ? " i propratno pismo" : ""}${data.mail ? " i mejl" : ""} za ${what}.`
+    : `📄 Ready: your CV${data.letter_file_id ? " and cover letter" : ""}${data.mail ? " and email" : ""} for ${what}.`) + `\n${brand.site_url}`;
   await sendMessage(env, chat, text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c])).catch(() => {});
 }
 
@@ -104,7 +107,7 @@ export function routes(on, { requireUser, requireEngine }) {
     if (params.id.startsWith("own:")) for (const k of OWN_KEYS) if (k in body) data[k] = String(body[k] || "").slice(0, 300);
     if (data.status && !STATUSES.includes(data.status)) throw new HttpError(400, "bad_status");
     if (body.status === "sent" && !data.sent_on) data.sent_on = nowIso().slice(0, 10);
-    if (["new", "waiting", "ready"].includes(body.status)) delete data.sent_on; // "I've sent it" taken back
+    if (["new", "waiting", "ready"].includes(body.status)) { delete data.sent_on; delete data.followup_sent_on; } // "I've sent it" taken back
     if (body.status === "suggested" && (data.mail || data.cv_file_id)) {
       // back to the start: the finished CV and email are kept as history, not thrown away
       data.history = [...(data.history || []), { at: nowIso(), mail: data.mail || null, cv_file_id: data.cv_file_id || "",
@@ -134,11 +137,13 @@ export function routes(on, { requireUser, requireEngine }) {
   // A request is about an agency (a CV and email for it) or a job posting (a CV, and a cover letter if wanted).
   // Their data lives with the agency (user_agencies) or the application (applications); both keep the same fields:
   // state (waiting/ready), note, change, changes, file_id (the CV to start from), results, history.
+  const agencyStore = {
+    load: (db, userId, id) => mine(db, userId, id),
+    save: (db, userId, id, data) => saveMine(db, userId, id, data),
+  };
   const TARGETS = {
-    agency_mail: {
-      load: (db, userId, id) => mine(db, userId, id),
-      save: (db, userId, id, data) => saveMine(db, userId, id, data),
-    },
+    agency_mail: agencyStore,
+    agency_followup: agencyStore,
     job_cv: {
       load: async (db, userId, id) => {
         const row = await db.prepare("SELECT data FROM applications WHERE user_id = ? AND id = ?").bind(userId, id).first();
@@ -148,8 +153,10 @@ export function routes(on, { requireUser, requireEngine }) {
         .bind(JSON.stringify(data), nowIso(), userId, id).run(),
     },
   };
-  // agencies keep their stage in "status"; applications keep it in "cv_state" (their status is the application's)
-  const stateKey = (kind) => (kind === "job_cv" ? "cv_state" : "status");
+  TARGETS.job_followup = TARGETS.job_cv;
+  // where each kind keeps its stage: agencies in "status", a job's CV in "cv_state", follow-ups in "followup_state"
+  const stateKey = (kind) => ({ job_cv: "cv_state", agency_followup: "followup_state", job_followup: "followup_state" })[kind] || "status";
+  const isFollowup = (kind) => kind.endsWith("_followup");
 
   on("POST", "/api/requests", async ({ request, db }) => {
     const user = await requireUser(request, db);
@@ -166,6 +173,11 @@ export function routes(on, { requireUser, requireEngine }) {
         .bind(id, user.id, body.kind, String(body.target), (change ? `CHANGE: ${change}` : String(body.note || "")).slice(0, 2000),
           String(body.file_id || data.file_id || ""), nowIso()),
     ]);
+    if (isFollowup(body.kind)) {
+      await target.save(db, user.id, String(body.target), { ...data, followup_state: "waiting", followup_note: String(body.note || "").slice(0, 2000),
+        followup_change: change, followup_requested_at: nowIso() });
+      return json({ id });
+    }
     const next = { ...data, [stateKey(body.kind)]: "waiting", requested_at: nowIso(),
       note: change ? data.note || "" : String(body.note ?? data.note ?? "").slice(0, 2000),
       file_id: body.file_id || data.file_id || "", change,
@@ -183,16 +195,17 @@ export function routes(on, { requireUser, requireEngine }) {
     const out = [];
     for (const r of rows) {
       const current = await TARGETS[r.kind]?.load(db, r.user_id, r.target);
-      const agency = r.kind !== "agency_mail" ? null : r.target.startsWith("own:") ? current
+      const agency = !r.kind.startsWith("agency") ? null : r.target.startsWith("own:") ? current
         : parse((await db.prepare("SELECT data FROM agencies WHERE id = ?").bind(r.target).first())?.data, {});
-      const posting = r.kind === "job_cv" ? parse((await db.prepare("SELECT data FROM postings WHERE id = ?").bind(r.target).first())?.data, null) : null;
+      const posting = r.kind.startsWith("job") ? parse((await db.prepare("SELECT data FROM postings WHERE id = ?").bind(r.target).first())?.data, null) : null;
       const file = r.file_id && await db.prepare("SELECT id, name, size FROM files WHERE id = ? AND user_id = ?").bind(r.file_id, r.user_id).first();
       const s = parse(r.settings, {});
       out.push({ id: r.id, kind: r.kind, target: r.target, note: r.note, created_at: r.created_at, agency, file: file || null,
-        application: r.kind === "job_cv" ? current : null, posting, want_letter: Boolean(current?.want_letter),
+        application: r.kind.startsWith("job") ? current : null, posting, want_letter: Boolean(current?.want_letter),
         previous: current?.mail || current?.cv_file_id ? { mail: current.mail || null, cv_file_id: current.cv_file_id || "",
           letter_file_id: current.letter_file_id || "" } : null,
-        user_note: current?.note || "",
+        user_note: current?.note || "", sent_on: current?.sent_on || current?.applied_on || "",
+        followup_note: current?.followup_note || "", followup_change: current?.followup_change || "",
         user: { id: r.user_id, name: s.name || "", language: s.language || "en", country: s.country || "" } });
     }
     return json({ requests: out });
@@ -208,6 +221,15 @@ export function routes(on, { requireUser, requireEngine }) {
     if (!req) throw new HttpError(404, "not_found");
     const target = TARGETS[req.kind];
     const data = (await target.load(db, req.user_id, req.target)) || {};
+    if (isFollowup(req.kind)) {
+      if (body.mail) data.followup_mail = { to: String(body.mail.to || ""), subject: String(body.mail.subject || ""), body: String(body.mail.body || "") };
+      data.followup_state = "ready";
+      data.followup_change = "";
+      await target.save(db, req.user_id, req.target, data);
+      await db.prepare("UPDATE requests SET status = 'done', done_at = ? WHERE id = ?").bind(nowIso(), params.id).run();
+      await tellUser(env, db, req, data);
+      return json({ ok: true });
+    }
     if (data.cv_file_id || data.mail) {  // the version being replaced stays in the history
       data.history = [...(data.history || []), { at: nowIso(), mail: data.mail || null, cv_file_id: data.cv_file_id || "",
         letter_file_id: data.letter_file_id || "", note: data.note || "", changes: data.changes || [], replaced: true }].slice(-10);

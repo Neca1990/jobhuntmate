@@ -33,7 +33,14 @@ def call(method: str, path: str, body=None, raw: bool = False):
 def show(r: dict) -> str:
     a, u = r["agency"] or {}, r["user"]
     lines = [f"{r['id']}  {r['created_at'][:16]}  {r['kind']}  for {u['name'] or u['id'][:8]} ({u['language']}, {u['country']})"]
-    if r["kind"] == "job_cv":
+    if r["kind"].endswith("_followup"):
+        first = (r.get("previous") or {}).get("mail") or {}
+        lines.append(f"   FOLLOW-UP to the email sent {r.get('sent_on') or '?'}: \"{first.get('subject', '-')}\" to {first.get('to', '-')}")
+        if r.get("followup_change"):
+            lines.append(f"   CHANGE REQUESTED: {r['followup_change']}")
+        elif r.get("followup_note"):
+            lines.append(f"   follow-up note: {r['followup_note']}")
+    if r["kind"].startswith("job"):
         app = r.get("application") or {}
         lines.append(f"   job: {app.get('title', '?')} – {app.get('company', '?')}  ({app.get('source', '')})")
         lines.append(f"   link: {app.get('company_url') or app.get('url', '')}")
@@ -96,7 +103,8 @@ def main(argv=None) -> int:
         body["mail"] = {"to": a.to, "subject": a.subject, "body": Path(a.body).read_text() if a.body else ""}
         if not a.to:
             waiting = {r["id"]: r for r in call("GET", "requests")["requests"]}
-            body["mail"]["to"] = ((waiting.get(a.id) or {}).get("agency") or {}).get("email", "")
+            r = waiting.get(a.id) or {}
+            body["mail"]["to"] = ((r.get("previous") or {}).get("mail") or {}).get("to") or (r.get("agency") or {}).get("email", "")
     for flag, key in ((a.cv, "file"), (a.letter, "letter")):
         if flag:
             f = Path(flag).expanduser()

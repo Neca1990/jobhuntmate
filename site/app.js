@@ -624,7 +624,8 @@ function drawApplications(filter = state.appsFilter || "") {
         el("td", {}, [el("a", { href: a.url, target: "_blank", rel: "noopener noreferrer", text: a.title || "—" })]),
         el("td", { text: a.source || "" }), el("td", { text: a.score ? `${a.score}/10` : "" }),
         el("td", {}, [statusSelect(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { text: a.deadline || "" }), noteCell(a),
-      ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 9 }, [cvDetail(a)])])].filter(Boolean)))])])
+      ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 9 }, [
+        a.status === "sent" && appFollowup(a), (a.status !== "sent" || a.cv_state === "ready") && cvDetail(a)].filter(Boolean))])].filter(Boolean)))])])
       : el("p", { class: "muted", text: t("a.empty") }),
   ]));
 }
@@ -634,12 +635,20 @@ const toggleOpen = (a) => { state.appOpen = state.appOpen === a.id ? null : a.id
 function cvCell(a) {
   if (a.cv_state === "waiting") return [el("span", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), ` ${t("a.cv_waiting")}`])];
   if (a.cv_state === "ready") {
-    return [el("button", { class: "ghost small", text: t("a.view_cv"), onclick: () => previewFile(a.cv_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
+    return [a.status === "sent" && followupButton(a), el("button", { class: "ghost small", text: t("a.view_cv"), onclick: () => previewFile(a.cv_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
       a.letter_file_id && el("button", { class: "ghost small", text: t("a.view_letter"), onclick: () => previewFile(a.letter_file_id, "", (txt) => askJobChange(a, txt)).catch(() => {}) }),
       el("button", { class: "ghost small", text: state.appOpen === a.id ? "▴" : "⋯", title: t("a.more"), onclick: () => toggleOpen(a) })].filter(Boolean);
   }
+  if (a.status === "sent") return [followupButton(a)];
   if (NO_CV.has(a.status)) return [];
   return [el("button", { class: "small", text: t("a.make_cv"), onclick: () => toggleOpen(a) })];
+}
+const sentDays = (a) => (a.applied_on ? daysAgo(a.applied_on) : 0);
+function followupButton(a) {
+  const due = sentDays(a) >= FOLLOWUP_DAYS && !a.followup_sent_on && a.followup_state !== "waiting";
+  const label = a.followup_sent_on ? t("fu.done_short") : a.followup_state === "waiting" ? `⏳ ${t("fu.short")}`
+    : a.followup_state === "ready" ? `✅ ${t("fu.short")}` : due ? `⏰ ${t("fu.short")}` : t("fu.short");
+  return el("button", { class: due || a.followup_state === "ready" ? "small" : "ghost small", text: label, onclick: () => toggleOpen(a) });
 }
 async function askJobChange(a, text) {
   try {
@@ -937,14 +946,8 @@ function copyRow(label, text) {
 }
 function mailBlock(a) {
   const m = a.mail;
-  const enc = encodeURIComponent;
-  const menu = el("details", { class: "menu" }, [el("summary", { class: "button ghost small", text: t("ag.open_mail") }),
-    el("div", { class: "menu-list" }, [
-      ...MAIL_APPS.map(([name, url]) => el("a", { href: url(enc(m.to), enc(m.subject), enc(m.body)), target: "_blank", rel: "noopener noreferrer",
-        text: name, onclick: () => a.cv_file_id && downloadFile(a.cv_file_id).catch(() => {}) })),
-      el("a", { href: `mailto:${enc(m.to)}?subject=${enc(m.subject)}&body=${enc(m.body)}`, text: t("ag.mail_app"),
-        onclick: () => a.cv_file_id && downloadFile(a.cv_file_id).catch(() => {}) }),
-      el("p", { class: "muted", text: t("ag.attach_note") })])]);
+  const menu = mailMenu(m, () => a.cv_file_id && downloadFile(a.cv_file_id).catch(() => {}));
+  menu.querySelector(".menu-list").append(el("p", { class: "muted", text: t("ag.attach_note") }));
   return el("div", { class: "mail" }, [copyRow(t("ag.to"), m.to), copyRow(t("ag.subject"), m.subject),
     el("div", { class: "copyrow multi" }, [el("span", { class: "muted", text: t("ag.body") }), el("pre", { class: "copytext", text: m.body }),
       el("button", { class: "ghost small", text: t("copy"), onclick: (e) => navigator.clipboard.writeText(m.body).then(() => { e.target.textContent = "✅"; }) })]),
@@ -955,6 +958,73 @@ function mailBlock(a) {
       a.status === "ready" && el("button", { class: "ghost small", text: t("ag.ask_change"), onclick: () => {
         state.agChanging = state.agChanging === a.id ? null : a.id; drawAgencies(); } })].filter(Boolean)),
     a.status === "ready" && state.agChanging === a.id && changeBox(a)].filter(Boolean));
+}
+// ---- follow-up email (agencies and job applications share it) ----
+// x: the agency or application; ask(body) sends the request; markSent() records that it went out
+function followupBlock(x, sentOn, { ask, markSent }) {
+  if (x.followup_sent_on) return el("p", { class: "muted", text: t("fu.sent_on", { d: x.followup_sent_on }) });
+  if (x.followup_state === "waiting") {
+    return el("p", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), " ", t("fu.waiting")]);
+  }
+  const days = sentOn ? daysAgo(sentOn) : 0;
+  if (x.followup_state === "ready" && x.followup_mail) {
+    const m = x.followup_mail;
+    const change = el("textarea", { rows: 2, maxlength: 2000, placeholder: t("ag.change_ph") });
+    const count = el("span", { class: "muted counter" });
+    countChars(change, count);
+    return el("div", { class: "followup" }, [el("h4", { text: t("fu.ready") }),
+      el("div", { class: "mail" }, [copyRow(t("ag.to"), m.to), copyRow(t("ag.subject"), m.subject),
+        el("div", { class: "copyrow multi" }, [el("span", { class: "muted", text: t("ag.body") }), el("pre", { class: "copytext", text: m.body }),
+          el("button", { class: "ghost small", text: t("copy"), onclick: (e) => navigator.clipboard.writeText(m.body).then(() => { e.target.textContent = "✅"; }) })]),
+        el("div", { class: "actions" }, [mailMenu(m)])]),
+      el("details", {}, [el("summary", { class: "muted", text: t("ag.ask_change") }),
+        el("label", {}, [t("ag.change_label"), change]),
+        el("div", { class: "row", style: "justify-content:flex-start" }, [
+          el("button", { class: "small", text: t("ag.send_change"), onclick: () => { if (change.value.trim()) ask({ change: change.value.trim() }); } }), count])]),
+      el("div", { class: "final" }, [el("button", { text: t("fu.i_sent"), onclick: markSent })])]);
+  }
+  const note = el("textarea", { rows: 2, maxlength: 2000, placeholder: t("fu.note_ph") });
+  return el("div", { class: "followup" }, [
+    days >= FOLLOWUP_DAYS ? el("p", { class: "warn", text: t("ag.followup_due", { n: days }) })
+      : sentOn && el("p", { class: "muted", text: t("fu.early", { n: days, d: FOLLOWUP_DAYS }) }),
+    el("label", {}, [t("fu.note"), note]),
+    el("div", { class: "actions" }, [el("button", { class: days >= FOLLOWUP_DAYS ? "" : "ghost", text: t("fu.ask"),
+      onclick: () => ask({ note: note.value }) })])].filter(Boolean));
+}
+function mailMenu(m, onOpen = () => {}) {
+  const enc = encodeURIComponent;
+  return el("details", { class: "menu" }, [el("summary", { class: "button ghost small", text: t("ag.open_mail") }),
+    el("div", { class: "menu-list" }, [
+      ...MAIL_APPS.map(([name, url]) => el("a", { href: url(enc(m.to), enc(m.subject), enc(m.body)), target: "_blank", rel: "noopener noreferrer", text: name, onclick: onOpen })),
+      el("a", { href: `mailto:${enc(m.to)}?subject=${enc(m.subject)}&body=${enc(m.body)}`, text: t("ag.mail_app"), onclick: onOpen })])]);
+}
+function agencyFollowup(a) {
+  return followupBlock(a, a.sent_on, {
+    ask: async (body) => {
+      try {
+        await api("POST", "/api/requests", { kind: "agency_followup", target: a.id, ...body });
+        state.agencies.mine[a.id] = { ...state.agencies.mine[a.id], followup_state: "waiting" };
+        agencyNote(t("fu.requested"));
+      } catch (e) { agencyNote(errText(e.code), "error"); }
+      drawAgencies();
+    },
+    markSent: () => saveAgency(a.id, { followup_sent_on: new Date().toISOString().slice(0, 10) }),
+  });
+}
+function appFollowup(a) {
+  return followupBlock(a, a.applied_on, {
+    ask: async (body) => {
+      try {
+        await api("POST", "/api/requests", { kind: "job_followup", target: a.id, ...body });
+        a.followup_state = "waiting";
+        drawApplications();
+      } catch (e) { alertRow(e); }
+    },
+    markSent: async () => {
+      try { Object.assign(a, (await api("PATCH", `/api/applications/${encodeURIComponent(a.id)}`, { followup_sent: true })).application); drawApplications(); }
+      catch (e) { alertRow(e); }
+    },
+  });
 }
 function mailEditor(a) {
   const to = el("input", { type: "text", value: a.mail.to });
@@ -1012,7 +1082,6 @@ function agencyCard(a) {
     ].filter(Boolean)));
   }
   if (a.sent_on) parts.push(el("p", { class: "muted", text: `📨 ${t("ag.sent_on")} ${a.sent_on} (${t("ag.days_ago", { n: daysAgo(a.sent_on) })})` }));
-  if (a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS) parts.push(el("p", { class: "warn", text: t("ag.followup_due", { n: daysAgo(a.sent_on) }) }));
   const info = !a.own && summaryOf(a);
   if (info) parts.push(a.status === "suggested" ? info : el("details", {}, [el("summary", { class: "muted", text: t("ag.about") }), info]));
   if (a.status === "suggested") {
@@ -1043,10 +1112,12 @@ function agencyCard(a) {
       el("button", { class: "ghost small", text: t("ag.cv"), onclick: () => downloadFile(a.cv_file_id).catch(() => {}) }),
       a.prijava_link && el("a", { class: "button ghost small", href: a.prijava_link, target: "_blank", rel: "noopener noreferrer", text: t("ag.apply_site") })].filter(Boolean)));
   }
+  if (a.status === "sent" && a.mail) parts.push(agencyFollowup(a));
   if (a.own && a.status !== "new") parts.push(el("div", { class: "actions" }, [
     el("button", { class: "danger small push-right", text: t("s.remove"), onclick: () => removeOwn(a) })]));
   if ((a.history || []).length) parts.push(historyBlock(a));
-  return el("div", { class: `search ag-card ${a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS ? "changed" : ""}` }, parts);
+  const due = a.status === "sent" && a.sent_on && daysAgo(a.sent_on) >= FOLLOWUP_DAYS && !a.followup_sent_on;
+  return el("div", { class: `search ag-card ${due ? "changed" : ""}` }, parts);
 }
 function historyBlock(a) {
   return el("details", { class: "history" }, [el("summary", { class: "muted", text: t("ag.history", { n: a.history.length }) }),

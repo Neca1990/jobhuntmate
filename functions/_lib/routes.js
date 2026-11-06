@@ -123,6 +123,11 @@ on("PATCH", "/api/applications/:id", async ({ request, env, db, params }) => {
   const app = parse(row.data, {});
   const before = app.status;
   if (typeof body.status === "string") app.status = body.status.slice(0, 40);
+  if (app.status === "sent" && before !== "sent" && !app.applied_on) app.applied_on = nowIso().slice(0, 10);
+  if (body.followup_sent === true) app.followup_sent_on = nowIso().slice(0, 10);
+  if (body.followup_mail && typeof body.followup_mail === "object") {
+    app.followup_mail = { to: String(body.followup_mail.to || ""), subject: String(body.followup_mail.subject || ""), body: String(body.followup_mail.body || "") };
+  }
   if (typeof body.note === "string" && body.note.trim()) {
     app.notes = [...(app.notes || []), { at: nowIso(), text: body.note.trim().slice(0, 2000) }];
   }
