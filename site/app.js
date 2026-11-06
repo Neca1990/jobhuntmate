@@ -774,6 +774,16 @@ function drawAgencies() {
     ownAgencyForm(),
   );
 }
+// "site.com" for each source; the same site twice gets its page too ("site.com/contact"), so links stay distinct
+function sourceLinks(urls) {
+  const parsed = urls.map((u) => { try { return new URL(u); } catch { return null; } });
+  const hosts = parsed.map((x) => x?.hostname.replace(/^www\./, "") || "");
+  return urls.flatMap((u, i) => {
+    const seg = parsed[i]?.pathname.split("/").filter(Boolean)[0];
+    const label = hosts.filter((h) => h === hosts[i]).length > 1 && seg ? `${hosts[i]}/${seg}` : hosts[i] || u;
+    return [i ? " · " : "", el("a", { href: u, target: "_blank", rel: "noopener noreferrer", text: label })];
+  });
+}
 function summaryOf(a) {
   const line = (label, text) => text && el("p", {}, [el("strong", { text: `${label}: ` }), text]);
   return el("div", { class: "ag-summary" }, [
@@ -783,10 +793,7 @@ function summaryOf(a) {
     line(t("ag.whom"), a.email ? `${a.email}${a.email_opis ? ` – ${a.email_opis}` : ""}` : a.email_opis),
     (a.koraci || []).length && el("div", {}, [el("strong", { text: `${t("ag.steps")}:` }), el("ol", {}, a.koraci.map((k) => el("li", { text: k })))]),
     a.prijava_napomena && el("p", { class: "muted", text: a.prijava_napomena }),
-    (a.izvori || []).length && el("p", { class: "muted" }, [`${t("ag.sources")}: `, ...a.izvori.flatMap((u, i) => {
-      let host = u; try { host = new URL(u).hostname.replace(/^www\./, ""); } catch { /* keep as is */ }
-      return [i ? " · " : "", el("a", { href: u, target: "_blank", rel: "noopener noreferrer", text: host })];
-    }), a.provereno ? ` · ${t("ag.checked")} ${a.provereno}` : ""]),
+    (a.izvori || []).length && el("p", { class: "muted" }, [`${t("ag.sources")}: `, ...sourceLinks(a.izvori), a.provereno ? ` · ${t("ag.checked")} ${a.provereno}` : ""]),
   ].filter(Boolean));
 }
 function copyRow(label, text) {
