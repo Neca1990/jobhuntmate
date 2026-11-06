@@ -612,3 +612,21 @@ test("a username changed in Telegram follows on the account: from any tap or mes
   assert.equal(r.identities[0].label, "Ana Anić");
   assert.equal(await label(), "Ana Anić");
 });
+
+test("the owner hears on Telegram when someone else asks for a CV; not for their own requests", async () => {
+  const { cookie: admin } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { code } = await (await call("POST", "/api/admin/invites", { cookie: admin, body: { note: "friend" } })).json();
+  const friend = await signIn(2002, code);
+  await call("PUT", "/api/me/settings", { cookie: friend.cookie, body: { name: "Marko" } });
+  const me = await (await call("GET", "/api/me", { cookie: friend.cookie })).json();
+  await call("PUT", `/api/engine/users/${me.id}/applications`, { headers: engine, body: [{ id: "f1", status: "approved", title: "QA", company: "Acme" }] });
+  sent = [];
+  await call("POST", "/api/requests", { cookie: friend.cookie, body: { kind: "job_cv", target: "f1", note: "" } });
+  const msg = sent.find((m) => m.url.endsWith("/sendMessage"));
+  assert.equal(String(msg.body.chat_id), String(OWNER));
+  assert.match(msg.body.text, /Novi zahtev.*CV za oglas[\s\S]*Marko[\s\S]*QA – Acme/);
+  sent = [];
+  await call("POST", "/api/requests", { cookie: admin, body: { kind: "agency_mail", target: "own:x" } });
+  assert.equal(sent.filter((m) => m.url.endsWith("/sendMessage")).length, 0);
+});

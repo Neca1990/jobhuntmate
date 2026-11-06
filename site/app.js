@@ -579,10 +579,14 @@ async function loadSearchAll(box, posted = null) {
     try { await loadSearchAll(box, await api("POST", "/api/search-all")); }
     catch (e) { note.textContent = t(`sa.err.${e.code}`) !== `sa.err.${e.code}` ? t(`sa.err.${e.code}`) : errText(e.code); note.className = "error"; button.disabled = false; }
   } });
+  if (!(state.me.settings?.searches || []).length) {
+    box.replaceChildren(el("h2", { text: t("sa.title") }), el("p", { class: "muted", text: t("sa.no_searches") }));
+    return;
+  }
   const why = busy ? "" : s.blocked === "limit_day" ? t("sa.limit_day", { n: s.per_day })
     : s.blocked === "cooldown" ? t("sa.cooldown", { at: clock(s.next_at) }) : state.dirty ? t("sa.save_first") : "";
   const r = s.result || {};
-  box.replaceChildren(
+  box.replaceChildren(...[
     el("div", { class: "row" }, [el("h2", { text: t("sa.title") }), button]),
     el("p", { class: "muted", text: t("sa.intro", { days: s.days, n: s.send }) }),
     busy ? el("p", { class: "warn" }, [el("span", { class: "hourglass", text: "⏳" }), " ", t(s.state === "running" ? "sa.running" : "sa.waiting")])
@@ -591,7 +595,7 @@ async function loadSearchAll(box, posted = null) {
     why && el("p", { class: "muted", text: why }),
     el("p", { class: "muted small", text: t("sa.left", { used: s.count_today, of: s.per_day, min: s.cooldown_min }) }),
     note,
-  );
+  ].filter(Boolean));
   if (busy) searchAllTimer = setTimeout(() => loadSearchAll(box), 5000);
   else if (s.blocked === "cooldown") searchAllTimer = setTimeout(() => loadSearchAll(box), Math.max(5000, new Date(s.next_at) - Date.now() + 1000));
 }
@@ -659,6 +663,8 @@ function openOnboarding() {
             state.dirty = false;
             clearDraft();
             box.classList.add("hidden");
+            // the first postings right away, from the archive, instead of waiting for the next search
+            await api("POST", "/api/search-all").catch(() => {});
             renderApp();
           } catch (e) { $("#ob-error").textContent = errText(e.code); }
         } }),

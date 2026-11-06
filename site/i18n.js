@@ -66,7 +66,8 @@ const TEXT = {
     // onboarding
     "ob.title": "Let's set up your search", "ob.step": "Step {n} of 3", next: "Next", back: "Back", finish: "Start searching",
     "ob.where": "Where do you live, and which language do you want?", "ob.what": "What kind of job are you looking for?",
-    "ob.how": "Where should new jobs reach you?", "ob.done": "All set! The first jobs arrive with the next search (at most an hour or two).",
+    "ob.how": "Where should new jobs reach you?", "ob.done": "All set! Right after this I go through all postings of the last 45 days for you – the first ones reach your Telegram in a minute or two. New ones follow with every search.",
+    "sa.no_searches": "Save a search first – then this goes through all recent postings for it.",
     // settings
     language: "Language of the site and messages", country: "Country you live in",
     "s.searches": "Searches", "s.add_search": "+ Add search", "s.remove": "Remove", "s.name": "Name", "s.family": "Field",
@@ -224,7 +225,8 @@ const TEXT = {
     unsaved: "Imaš nesačuvane izmene.", loading: "Učitavam…",
     "ob.title": "Hajde da podesimo pretragu", "ob.step": "Korak {n} od 3", next: "Dalje", back: "Nazad", finish: "Kreni sa pretragom",
     "ob.where": "Gde živiš i na kom jeziku želiš sajt i poruke?", "ob.what": "Kakav posao tražiš?",
-    "ob.how": "Gde da ti stižu novi oglasi?", "ob.done": "Sve je spremno! Prvi oglasi stižu sa sledećom pretragom (najviše sat-dva).",
+    "ob.how": "Gde da ti stižu novi oglasi?", "ob.done": "Sve je spremno! Odmah posle ovoga pretražujem za tebe sve oglase iz poslednjih 45 dana – prvi stižu na Telegram za minut-dva. Novi stižu sa svakom pretragom.",
+    "sa.no_searches": "Prvo sačuvaj pretragu – onda ovo prolazi kroz sve skorašnje oglase za nju.",
     language: "Jezik sajta i poruka", country: "Zemlja u kojoj živiš",
     "s.searches": "Pretrage", "s.add_search": "+ Dodaj pretragu", "s.remove": "Ukloni", "s.name": "Naziv", "s.family": "Oblast",
     "s.specializations": "Specijalizacija", "s.seniority": "Nivo", "s.types": "Tip angažmana", "s.locations": "Gde",

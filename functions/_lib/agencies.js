@@ -68,6 +68,20 @@ async function tellUser(env, db, req, data) {
   await sendMessage(env, chat, text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c])).catch(() => {});
 }
 
+// the owner hears on Telegram when someone else asks for a CV or an email (they make it by hand for now)
+const KIND_SR = { agency_mail: "CV i mejl za agenciju", agency_followup: "follow-up mejl za agenciju", job_cv: "CV za oglas",
+  job_followup: "follow-up mejl za oglas" };
+async function tellOwner(env, db, user, kind, data, target, change) {
+  if (!env.OWNER_TELEGRAM_ID || !env.TELEGRAM_BOT_TOKEN) return;
+  const ids = (await db.prepare("SELECT subject, label FROM identities WHERE user_id = ?").bind(user.id).all()).results;
+  if (ids.some((i) => String(i.subject) === String(env.OWNER_TELEGRAM_ID))) return; // their own requests
+  const who = user.settings?.name || ids[0]?.label || "?";
+  const what = kind.startsWith("job") ? `${data.title || ""} – ${data.company || ""}` : data.name || target;
+  const esc = (x) => String(x).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]);
+  await sendMessage(env, env.OWNER_TELEGRAM_ID, `📥 <b>Novi zahtev</b>${change ? " (izmena)" : ""}: ${KIND_SR[kind] || kind}\n` +
+    `👤 ${esc(who)}\n📌 ${esc(what)}${change ? `\n✏️ ${esc(change.slice(0, 200))}` : ""}\n\nNapiši Claude-u: „obradi zahteve“.`).catch(() => {});
+}
+
 export function routes(on, { requireUser, requireEngine }) {
   // ---------- files ----------
   on("GET", "/api/files", async ({ request, db }) => {
@@ -158,7 +172,7 @@ export function routes(on, { requireUser, requireEngine }) {
   const stateKey = (kind) => ({ job_cv: "cv_state", agency_followup: "followup_state", job_followup: "followup_state" })[kind] || "status";
   const isFollowup = (kind) => kind.endsWith("_followup");
 
-  on("POST", "/api/requests", async ({ request, db }) => {
+  on("POST", "/api/requests", async ({ request, env, db }) => {
     const user = await requireUser(request, db);
     const body = await readBody(request, 16 * 1024);
     const target = TARGETS[body.kind];
@@ -173,6 +187,7 @@ export function routes(on, { requireUser, requireEngine }) {
         .bind(id, user.id, body.kind, String(body.target), (change ? `CHANGE: ${change}` : String(body.note || "")).slice(0, 2000),
           String(body.file_id || data.file_id || ""), nowIso()),
     ]);
+    await tellOwner(env, db, user, body.kind, data, String(body.target), change);
     if (isFollowup(body.kind)) {
       await target.save(db, user.id, String(body.target), { ...data, followup_state: "waiting", followup_note: String(body.note || "").slice(0, 2000),
         followup_change: change, followup_requested_at: nowIso() });
