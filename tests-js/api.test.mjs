@@ -630,3 +630,39 @@ test("the owner hears on Telegram when someone else asks for a CV; not for their
   await call("POST", "/api/requests", { cookie: admin, body: { kind: "agency_mail", target: "own:x" } });
   assert.equal(sent.filter((m) => m.url.endsWith("/sendMessage")).length, 0);
 });
+
+test("the catalog's 'how it fits' line is only for the owner", async () => {
+  const { cookie: admin } = await signIn(OWNER);
+  await call("PUT", "/api/engine/agencies", { headers: { authorization: "Bearer engine-key" },
+    body: [{ id: "a1", name: "Agency One", odgovara: "Good for QA", sta_rade: "Recruiting" }] });
+  const { code } = await (await call("POST", "/api/admin/invites", { cookie: admin, body: { note: "friend" } })).json();
+  const friend = await signIn(2002, code);
+  const forOwner = (await (await call("GET", "/api/agencies", { cookie: admin })).json()).catalog[0];
+  const forFriend = (await (await call("GET", "/api/agencies", { cookie: friend.cookie })).json()).catalog[0];
+  assert.equal(forOwner.odgovara, "Good for QA");
+  assert.equal(forFriend.odgovara, undefined);
+  assert.equal(forFriend.sta_rade, "Recruiting");
+});
+
+test("admin messages go to the group where the owner sent /admin; others can't move them; leaving the group undoes it", async () => {
+  const { cookie: admin } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const group = (from, text) => call("POST", "/api/telegram", { headers: { "x-telegram-bot-api-secret-token": SECRET },
+    body: { update_id: 3, message: { message_id: 9, from: { id: from }, chat: { id: -100555, type: "supergroup", title: "Admin" }, text } } });
+  await group(2002, "/admin"); // not the owner: nothing changes
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM app_settings WHERE key = 'admin_chat'").get().n, 0);
+  await group(OWNER, "/admin@job_alerts_notify_bot");
+  const { code } = await (await call("POST", "/api/admin/invites", { cookie: admin, body: { note: "friend" } })).json();
+  const friend = await signIn(2002, code);
+  const me = await (await call("GET", "/api/me", { cookie: friend.cookie })).json();
+  await call("PUT", `/api/engine/users/${me.id}/applications`, { headers: engine, body: [{ id: "g1", status: "approved", title: "QA", company: "Acme" }] });
+  sent = [];
+  await call("POST", "/api/requests", { cookie: friend.cookie, body: { kind: "job_cv", target: "g1" } });
+  assert.equal(sent.find((m) => m.url.endsWith("/sendMessage")).body.chat_id, -100555);
+  // the bot is removed from the group: back to the private chat
+  await call("POST", "/api/telegram", { headers: { "x-telegram-bot-api-secret-token": SECRET },
+    body: { update_id: 4, my_chat_member: { chat: { id: -100555, type: "supergroup" }, new_chat_member: { status: "left" } } } });
+  sent = [];
+  await call("POST", "/api/requests", { cookie: friend.cookie, body: { kind: "job_cv", target: "g1", change: "shorter" } });
+  assert.equal(String(sent.find((m) => m.url.endsWith("/sendMessage")).body.chat_id), String(OWNER));
+});

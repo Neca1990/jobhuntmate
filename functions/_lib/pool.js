@@ -3,7 +3,7 @@
 // matched against their settings, a few times a day (admin settings), and gets the best few at once.
 // A safety keeps the free database limit far away: above pool_alert_mb, and again every pool_step_mb more, the
 // period shortens and the admin gets a Telegram message.
-import { sendMessage } from "./telegram_api.js";
+import { notifyAdmin } from "./admin_chat.js";
 import { HttpError, json, nowIso, parse, readBody } from "./util.js";
 
 const DEFAULTS = { search_all_cooldown_min: 15, search_all_per_day: 3, search_all_send: 15, pool_days: 45, pool_alert_mb: 350, pool_step_mb: 50 };
@@ -130,9 +130,9 @@ export function routes(on, { requireUser, requireEngine, requireAdmin }) {
         deleted += r.meta?.changes || 0;
         size = r.meta?.size_after || size;
       }
-      if (env.OWNER_TELEGRAM_ID && env.TELEGRAM_BOT_TOKEN) {
+      {
         const mb = Math.round(size / MB);
-        await sendMessage(env, env.OWNER_TELEGRAM_ID, `⚠️ Arhiva oglasa: baza je ${mb} MB (granica ${s.pool_alert_mb + (level - 1) * s.pool_step_mb} MB). ` +
+        await notifyAdmin(env, db, `⚠️ Arhiva oglasa: baza je ${mb} MB (granica ${s.pool_alert_mb + (level - 1) * s.pool_step_mb} MB). ` +
           `Čuvam oglase ${days} dana umesto ${s.pool_days}. Podešava se na Admin stranici.`).catch(() => {});
       }
     }

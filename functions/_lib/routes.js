@@ -1,6 +1,7 @@
 // Every API route. functions/api/[[route]].js hands requests here; tests call handle() directly.
 import * as auth from "./auth/index.js";
 import { PROVIDERS } from "./auth/index.js";
+import { onAdminCommand, onMembership } from "./admin_chat.js";
 import { routes as agencyRoutes } from "./agencies.js";
 import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js";
 import { PRIVACY_VERSION, routes as privacyRoutes } from "./privacy.js";
@@ -91,6 +92,8 @@ on("POST", "/api/telegram", async ({ request, env, db }) => {
   }
   const update = await readBody(request);
   const msg = update.message;
+  await onMembership(db, update);
+  if (await onAdminCommand(env, db, msg)) return json({ ok: true });
   await PROVIDERS.telegram.relabel(db, msg?.from || update.callback_query?.from);
   const start = msg?.text?.match(/^\/start\s+([A-Za-z0-9_-]{20,64})$/);
   if (start && msg.chat?.type === "private") {

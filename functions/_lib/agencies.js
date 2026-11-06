@@ -2,6 +2,7 @@
 // requests for a tailored CV and email, which the owner (or later the Claude API) fulfils.
 import brand from "./brand.gen.js";
 import { relabel } from "./cards.js";
+import { notifyAdmin } from "./admin_chat.js";
 import { sendMessage } from "./telegram_api.js";
 import { HttpError, json, nowIso, parse, readBody } from "./util.js";
 
@@ -68,6 +69,12 @@ async function tellUser(env, db, req, data) {
   await sendMessage(env, chat, text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c])).catch(() => {});
 }
 
+async function isOwnerUser(env, db, userId) {
+  if (!env.OWNER_TELEGRAM_ID) return false;
+  return Boolean(await db.prepare("SELECT 1 FROM identities WHERE user_id = ? AND provider = 'telegram' AND subject = ?")
+    .bind(userId, String(env.OWNER_TELEGRAM_ID)).first());
+}
+
 // the owner hears on Telegram when someone else asks for a CV or an email (they make it by hand for now)
 const KIND_SR = { agency_mail: "CV i mejl za agenciju", agency_followup: "follow-up mejl za agenciju", job_cv: "CV za oglas",
   job_followup: "follow-up mejl za oglas" };
@@ -78,7 +85,7 @@ async function tellOwner(env, db, user, kind, data, target, change) {
   const who = user.settings?.name || ids[0]?.label || "?";
   const what = kind.startsWith("job") ? `${data.title || ""} – ${data.company || ""}` : data.name || target;
   const esc = (x) => String(x).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]);
-  await sendMessage(env, env.OWNER_TELEGRAM_ID, `📥 <b>Novi zahtev</b>${change ? " (izmena)" : ""}: ${KIND_SR[kind] || kind}\n` +
+  await notifyAdmin(env, db, `📥 <b>Novi zahtev</b>${change ? " (izmena)" : ""}: ${KIND_SR[kind] || kind}\n` +
     `👤 ${esc(who)}\n📌 ${esc(what)}${change ? `\n✏️ ${esc(change.slice(0, 200))}` : ""}\n\nNapiši Claude-u: „obradi zahteve“.`).catch(() => {});
 }
 
@@ -103,10 +110,13 @@ export function routes(on, { requireUser, requireEngine }) {
   });
 
   // ---------- agencies ----------
-  on("GET", "/api/agencies", async ({ request, db }) => {
+  on("GET", "/api/agencies", async ({ request, env, db }) => {
     const user = await requireUser(request, db);
+    // "how it fits" was written for the owner's own field; everyone else gets the catalog without it
+    const owner = await isOwnerUser(env, db, user.id);
     const catalog = (await db.prepare("SELECT id, data FROM agencies WHERE active = 1").all()).results
-      .map((r) => ({ id: r.id, ...parse(r.data, {}) }));
+      .map((r) => ({ id: r.id, ...parse(r.data, {}) }))
+      .map(({ odgovara, ...rest }) => (owner ? { ...rest, odgovara } : rest));
     const rows = (await db.prepare("SELECT agency_id, data FROM user_agencies WHERE user_id = ?").bind(user.id).all()).results;
     return json({ catalog, mine: Object.fromEntries(rows.map((r) => [r.agency_id, parse(r.data, {})])) });
   });
