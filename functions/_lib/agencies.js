@@ -3,7 +3,7 @@
 import brand from "./brand.gen.js";
 import { relabel } from "./cards.js";
 import { notifyAdmin } from "./admin_chat.js";
-import { sendMessage } from "./telegram_api.js";
+import { call } from "./telegram_api.js";
 import { HttpError, json, nowIso, parse, readBody } from "./util.js";
 
 const MAX_FILE = 1_500_000; // bytes; the database keeps up to ~2 MB in one row
@@ -57,7 +57,8 @@ async function tellUser(env, db, req, data) {
   const settings = parse((await db.prepare("SELECT settings FROM users WHERE id = ?").bind(req.user_id).first())?.settings, {});
   const chat = settings.channels?.telegram?.chat_id;
   const sr = settings.language === "sr";
-  if (req.kind === "job_cv") await relabel(env, data, settings.language);
+  // a job's card first (sent again if it was deleted), so the note below can answer it and show which posting it is
+  const card = req.kind.startsWith("job") ? await relabel(env, data, settings.language, db, req.user_id) : null;
   if (req.kind === "agency_followup" && !data.name) {
     data.name = parse((await db.prepare("SELECT data FROM agencies WHERE id = ?").bind(req.target).first())?.data, {}).name || "";
   }
@@ -66,7 +67,10 @@ async function tellUser(env, db, req, data) {
   const text = (req.kind.endsWith("_followup") ? (sr ? `✍️ Spreman je follow-up mejl za ${what}.` : `✍️ Your follow-up email for ${what} is ready.`)
     : sr ? `📄 Spremno: CV${data.letter_file_id ? " i propratno pismo" : ""}${data.mail ? " i mejl" : ""} za ${what}.`
     : `📄 Ready: your CV${data.letter_file_id ? " and cover letter" : ""}${data.mail ? " and email" : ""} for ${what}.`) + `\n${brand.site_url}`;
-  await sendMessage(env, chat, text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c])).catch(() => {});
+  await call(env, "sendMessage", { chat_id: chat, text: text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]),
+    parse_mode: "HTML", disable_web_page_preview: true,
+    ...(card && String(card.chat_id) === String(chat) ? { reply_parameters: { message_id: card.message_id, allow_sending_without_reply: true } } : {}),
+  }).catch(() => {});
 }
 
 async function isOwnerUser(env, db, userId) {

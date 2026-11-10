@@ -40,7 +40,8 @@ def send_card(user: dict, card) -> dict:
                               "disable_web_page_preview": True, "reply_markup": keyboard(card)})
     if not r.get("ok"):
         raise RuntimeError(f"sendMessage failed: {r.get('description')}")
-    return {"chat_id": _chat(user), "message_id": r["result"]["message_id"]}
+    # the text is kept with the application, so the site can send the card again if the person deletes it
+    return {"chat_id": _chat(user), "message_id": r["result"]["message_id"], "html": card.html}
 
 
 def notify(user: dict, text: str) -> None:

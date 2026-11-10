@@ -253,3 +253,11 @@ def test_text_read_wrongly_upstream_is_put_right():
     assert fix_mojibake("Caf\u00c3\u00a9") == "Caf\u00e9"
     assert fix_mojibake("Inženjer – Beograd") == "Inženjer – Beograd"  # proper text is left alone
     assert Job(source="x", url="u", title="A \u00e2\u0080\u0093 B", company="c").title == "A \u2013 B"
+
+
+def test_a_sent_card_keeps_its_text_so_the_site_can_send_it_again(monkeypatch):
+    from engine.cards import Card
+    from engine.channels import telegram
+    monkeypatch.setattr(telegram, "_call", lambda method, body: {"ok": True, "result": {"message_id": 7}})
+    ref = telegram.send_card({"channels": {"telegram": {"chat_id": 5}}}, Card(key="j1", html="<b>QA</b>", url="u"))
+    assert ref == {"chat_id": 5, "message_id": 7, "html": "<b>QA</b>"}

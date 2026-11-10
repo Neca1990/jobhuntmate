@@ -727,3 +727,58 @@ test("security: settings the forms can't produce are refused", async () => {
   assert.equal((await call("PUT", "/api/me/settings", { cookie, body: { schedule: { interval_hours: 3, active_from: "07:30", active_to: "21:00" } } })).status, 200);
   assert.equal((await call("GET", "/api/files/%E0", { cookie })).status, 400); // a broken path is answered, not a crash page
 });
+
+test("a card the person deleted in Telegram comes back when its status changes, and the CV note answers it", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  await call("PUT", `/api/engine/users/${users[0].id}/applications`, { headers: engine, body: [
+    { id: "j1", status: "approved", title: "QA Engineer", company: "Acme", url: "https://jobs.test/1",
+      refs: { telegram: { chat_id: OWNER, message_id: 42, html: "🆕 <b>QA Engineer</b> – Acme (card as sent)" } } },
+    { id: "j2", status: "approved", title: "Tester", company: "Beta", source: "Board", location: "Beograd", score: 6,
+      url: "https://jobs.test/2", company_url: "https://beta.test/careers", refs: { telegram: { chat_id: OWNER, message_id: 43 } } }] });
+  // Telegram: messages 42 and 43 were deleted by the person; new ones get 500, 501, ...
+  const deleted = new Set([42, 43]);
+  let next = 500;
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    sent.push({ url, body });
+    if (url.endsWith("/editMessageReplyMarkup") && deleted.has(body.message_id)) {
+      return new Response(JSON.stringify({ ok: false, error_code: 400, description: "Bad Request: message to edit not found" }));
+    }
+    return new Response(JSON.stringify({ ok: true, result: { message_id: next++ } }));
+  };
+  sent = [];
+  await call("PATCH", "/api/applications/j1", { cookie, body: { status: "sent" } });
+  const card = sent.find((m) => m.url.endsWith("/sendMessage"));
+  assert.equal(card.body.text, "🆕 <b>QA Engineer</b> – Acme (card as sent)"); // the very card the search sent
+  assert.equal(card.body.reply_markup.inline_keyboard[0][0].text, "📨 Applied");
+  let apps = (await (await call("GET", "/api/applications", { cookie })).json()).applications;
+  assert.equal(apps.find((a) => a.id === "j1").refs.telegram.message_id, 500);
+  sent = [];
+  await call("PATCH", "/api/applications/j1", { cookie, body: { status: "interview" } }); // it's there now: just relabelled
+  assert.deepEqual(sent.map((m) => m.url.split("/").at(-1)), ["editMessageReplyMarkup"]);
+  assert.equal(sent[0].body.message_id, 500);
+
+  // a CV made for a posting whose card is gone: the card comes back (a short one when the old text wasn't kept),
+  // then the note answers it, so it's clear which posting it is about
+  await call("POST", "/api/requests", { cookie, body: { kind: "job_cv", target: "j2" } });
+  const { requests } = await (await call("GET", "/api/engine/requests", { headers: engine })).json();
+  sent = [];
+  await call("PUT", `/api/engine/requests/${requests[0].id}`, { headers: engine, body: {
+    file: { name: "cv.pdf", data: Buffer.from("%PDF cv").toString("base64") } } });
+  const [again, note] = sent.filter((m) => m.url.endsWith("/sendMessage"));
+  assert.match(again.body.text, /<b>Tester<\/b> – Beta \(Board\)/);
+  assert.match(again.body.text, /href="https:\/\/jobs.test\/2"/);
+  assert.match(again.body.text, /href="https:\/\/beta.test\/careers"/);
+  assert.equal(again.body.reply_markup.inline_keyboard[0][0].text, "📄 CV ready");
+  assert.match(note.body.text, /Ready: your CV for Tester – Beta/);
+  assert.equal(note.body.reply_parameters.message_id, (await (await call("GET", "/api/applications", { cookie })).json())
+    .applications.find((a) => a.id === "j2").refs.telegram.message_id);
+
+  // a posting moved to the archive isn't brought back
+  deleted.add(500);
+  sent = [];
+  await call("PATCH", "/api/applications/j1", { cookie, body: { status: "rejected" } });
+  assert.deepEqual(sent.map((m) => m.url.split("/").at(-1)), ["editMessageReplyMarkup"]);
+});

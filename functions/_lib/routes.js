@@ -199,7 +199,7 @@ on("PATCH", "/api/applications/:id", async ({ request, env, db, params }) => {
   }
   await db.prepare("UPDATE applications SET data = ?, updated_at = ? WHERE user_id = ? AND id = ?")
     .bind(JSON.stringify(app), nowIso(), user.id, params.id).run();
-  if (app.status !== before) await relabel(env, app, user.settings.language);
+  if (app.status !== before) await relabel(env, app, user.settings.language, db, user.id);
   return json({ application: app });
 });
 
