@@ -261,3 +261,28 @@ def test_a_sent_card_keeps_its_text_so_the_site_can_send_it_again(monkeypatch):
     monkeypatch.setattr(telegram, "_call", lambda method, body: {"ok": True, "result": {"message_id": 7}})
     ref = telegram.send_card({"channels": {"telegram": {"chat_id": 5}}}, Card(key="j1", html="<b>QA</b>", url="u"))
     assert ref == {"chat_id": 5, "message_id": 7, "html": "<b>QA</b>"}
+
+
+def test_search_everything_looks_again_at_postings_left_out_for_a_condition(user, fake_site, monkeypatch):
+    """Left out for a language the person hadn't listed; once they add it, "search everything" brings it."""
+    from engine import liveness
+    from engine.models import Job
+    tg = FakeChannel()
+    monkeypatch.setitem(channels.CHANNELS, "telegram", tg)
+    monkeypatch.setattr(liveness, "still_open", lambda *a: True)
+    job = Job(source="fake", url="https://example.com/qa-en", title="Senior QA Engineer", company="Acme", location="Remote",
+              regions=["Europe"], remote=True, posted_at=NOW,
+              description_text="Manual and automated testing. Fluent English is required.")
+    nobody = {**user, "profile": {**(user.get("profile") or {}), "languages": []}}
+    store = MemoryStore([nobody])
+    store.pool = {job.id: job.to_dict()}
+    monkeypatch.setattr(store, "load_pool", lambda: list(store.pool.values()), raising=False)
+    monkeypatch.setattr(store, "search_all_requests", lambda: {"users": ["u1"], "send": 5, "days": 45})
+    store.files[("u1", "state")] = {"last_run": NOW.isoformat()}
+    engine_run.run(store, now=NOW, only_search_all=True)
+    assert store.files[("u1", "seen")][job.id]["status"].startswith("dropped:")
+    assert not tg.cards
+    store._users[0] = {**nobody, "profile": {**nobody["profile"], "languages": [{"name": "English", "level": "advanced"}]}}
+    engine_run.run(store, now=NOW, only_search_all=True)
+    assert store.files[("u1", "seen")][job.id]["status"] == "sent" and len(tg.cards) == 1
+    assert store.updates[-1][2]["diag"]["rechecked"] == 1

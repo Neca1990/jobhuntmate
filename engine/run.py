@@ -347,6 +347,15 @@ def search_everything(run: UserRun, pool: list, shared: dict, days: int) -> dict
     """Matches the whole archive against one user's settings; new matches join their queue, ranked by score."""
     sources = {s["id"]: s for s in shared["sources"]["sources"]}
     found, outcome, dropped = [], Counter(), Counter()
+    # postings left out earlier for a condition (a language, a place...) are looked at again: the person may have
+    # changed their settings since; the ones still ruled out are left out again
+    retry = [k for k, v in run.seen.items() if str(v.get("status", "")).startswith("dropped:")]
+    for k in retry:
+        del run.seen[k]
+    if retry:
+        run.fuzzy = {v.get("fuzzy") for v in run.seen.values() if v.get("fuzzy")}
+        run.fuzzy |= {fuzzy_key(a.get("company", ""), a.get("title", "")) for a in run.apps}
+    outcome["rechecked"] = len(retry)
     for d in pool:
         src = sources.get(d.get("source"))
         if not src or not run.wants(src):
