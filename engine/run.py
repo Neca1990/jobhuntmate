@@ -351,7 +351,8 @@ def search_everything(run: UserRun, pool: list, shared: dict, days: int) -> dict
     found, outcome, dropped = [], Counter(), Counter()
     # postings left out earlier for a condition (a language, a place...) are looked at again: the person may have
     # changed their settings since; the ones still ruled out are left out again
-    retry = [k for k, v in run.seen.items() if str(v.get("status", "")).startswith("dropped:")]
+    retry = [k for k, v in run.seen.items() if str(v.get("status", "")).startswith("dropped:")
+             and "company site" not in v["status"]]  # the company's own "not from your country" doesn't change
     for k in retry:
         del run.seen[k]
     if retry:
@@ -400,10 +401,17 @@ def answer_search_all(req: dict, store, shared, gstate, cache, runs: list, now: 
         result = search_everything(r, pool, shared, days)
         sent = send_queue(r, shared, gstate, cache, dry_run, limit=send, archive_first=True) if result["found"] else 0
         waiting_now = sum(1 for q in r.queue if q.get("archive"))
-        result.update(sent=sent, waiting=waiting_now)
+        # found = sent + waiting + left out at the last moment (taken down, or the company's site excludes the country)
+        gone = max(0, result["found"] - sent - waiting_now)
+        result.update(sent=sent, waiting=waiting_now, gone=gone)
+        if result["found"]:
+            text = t(r.lang, "notice.search_all", days=days, found=result["found"], sent=sent)
+            text += t(r.lang, "notice.search_all_waiting", waiting=waiting_now) if waiting_now else ""
+            text += t(r.lang, "notice.search_all_gone", gone=gone) if gone else ""
+        else:
+            text = t(r.lang, "notice.search_all_none", days=days)
         for name, channel in ([] if dry_run else channels.for_user(r.user)):
-            key = "notice.search_all" if result["found"] else "notice.search_all_none"
-            channel.notify(r.user, t(r.lang, key, days=days, found=result["found"], sent=sent, waiting=waiting_now))
+            channel.notify(r.user, text)
         if not dry_run:
             store.search_all_update(r.id, "done", result)
         sent_total += sent

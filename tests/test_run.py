@@ -201,7 +201,7 @@ def test_search_everything_answers_from_the_archive_best_first_and_the_rest_foll
     assert [c for uid, c in tg.cards if uid == "u1"].__len__() == 1
     result = store.updates[-1][2]
     assert store.updates[-1][:2] == ("u1", "done")
-    assert {k: result[k] for k in ("found", "days", "sent", "waiting")} == {"found": 2, "days": 45, "sent": 1, "waiting": 1}
+    assert {k: result[k] for k in ("found", "days", "sent", "waiting", "gone")} == {"found": 2, "days": 45, "sent": 1, "waiting": 1, "gone": 0}
     # what the search saw is kept with the result, so "nothing found" can be explained later
     assert result["diag"]["archive"] == 4 and result["diag"]["new"] == 2 and result["diag"]["no_match"] == 2
     assert result["diag"]["searches"][0]["family"] == "qa" and "English" in result["diag"]["languages"]
@@ -303,3 +303,24 @@ def test_no_languages_listed_means_not_set_a_required_language_only_warns(user):
     assert [d.value for d in drop] == ["English"]
     drop, _ = requirements.evaluate(job, {"languages": [{"name": "English", "level": "advanced"}]}, catalog, {}, ok)
     assert not drop
+
+
+def test_search_everything_note_counts_what_was_left_out_at_the_last_moment(user, berlin_user, fake_site, monkeypatch):
+    """Found 2, one taken down before sending: the note says 1 sent and 1 left out, and no "other 0 come later"."""
+    from datetime import timedelta
+    from engine import liveness
+    tg = FakeChannel()
+    monkeypatch.setitem(channels.CHANNELS, "telegram", tg)
+    store = MemoryStore([berlin_user])
+    engine_run.run(store, now=NOW)
+    store._users.append(user)
+    monkeypatch.setattr(store, "search_all_requests", lambda: {"users": ["u1"], "send": 5, "days": 45})
+    calls = []
+    monkeypatch.setattr(liveness, "still_open", lambda *a: (calls.append(1), len(calls) > 1)[1])  # the first is gone
+    engine_run.run(store, now=NOW + timedelta(days=7), only_search_all=True)
+    result = store.updates[-1][2]
+    assert (result["found"], result["sent"], result["waiting"], result["gone"]) == (2, 1, 0, 1)
+    note = [text for uid, text in tg.notes if uid == "u1"][-1]
+    assert "1 sent now" in note or "1 šaljem sada" in note
+    assert "Left out just before sending: 1" in note or "Izostavljeno pred samo slanje: 1" in note
+    assert "other 0" not in note and "Ostalih 0" not in note
