@@ -798,7 +798,19 @@ test("the person can have a posting's card sent to Telegram again; the old messa
   assert.ok(del.url.endsWith("/deleteMessage") && del.body.message_id === 42);
   const app = (await (await call("GET", "/api/applications", { cookie })).json()).applications.find((a) => a.id === "j1");
   assert.equal(app.refs.telegram.message_id, 1); // the new message
-  assert.equal((await call("POST", "/api/applications/j1/telegram", { cookie })).status, 429); // not twice in a row
+  assert.equal((await call("POST", "/api/applications/j1/telegram", { cookie })).status, 429); // not twice in half a minute
+  // half a minute later it may go again; an old message Telegram won't delete any more says where the card went
+  await env.DB.prepare("UPDATE applications SET data = json_set(data, '$.card_resent_at', '2026-01-01T00:00:00Z') WHERE id = 'j1'").run();
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url, body: JSON.parse(init.body) });
+    const ok = !url.endsWith("/deleteMessage");
+    return new Response(JSON.stringify(ok ? { ok, result: { message_id: 9 } } : { ok, description: "Bad Request: message can't be deleted" }));
+  };
+  sent = [];
+  assert.equal((await call("POST", "/api/applications/j1/telegram", { cookie })).status, 200);
+  assert.deepEqual(sent.map((m) => m.url.split("/").at(-1)), ["sendMessage", "deleteMessage", "editMessageText"]);
+  assert.equal(sent[2].body.message_id, 1);
+  assert.match(sent[2].body.text, /sent again further down/);
   assert.equal((await call("POST", "/api/applications/j2/telegram", { cookie })).status, 409);
   assert.equal((await call("POST", "/api/applications/nope/telegram", { cookie })).status, 404);
 });

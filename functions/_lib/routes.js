@@ -203,16 +203,18 @@ on("PATCH", "/api/applications/:id", async ({ request, env, db, params }) => {
   return json({ application: app });
 });
 
-// the job's card sent to Telegram again (e.g. after the person cleared the chat), a few seconds apart at most
-const resentAt = new Map();
+// the job's card sent to Telegram again (e.g. after the person cleared the chat); once per half minute per posting,
+// kept in the database so a reload or a second tab doesn't get around it
+const RESEND_GAP_MS = 30_000;
 on("POST", "/api/applications/:id/telegram", async ({ request, env, db, params }) => {
   const user = await requireUser(request, db);
   const row = await db.prepare("SELECT data FROM applications WHERE user_id = ? AND id = ?").bind(user.id, params.id).first();
   if (!row) throw new HttpError(404, "not_found");
-  const key = `${user.id}:${params.id}`;
-  if (Date.now() - (resentAt.get(key) || 0) < 5000) throw new HttpError(429, "too_soon");
-  resentAt.set(key, Date.now());
-  const ref = await resendCard(env, db, user.id, parse(row.data, {}), user.settings.language);
+  const app = parse(row.data, {});
+  if (Date.now() - Date.parse(app.card_resent_at || 0) < RESEND_GAP_MS) throw new HttpError(429, "too_soon");
+  await db.prepare("UPDATE applications SET data = json_set(data, '$.card_resent_at', ?) WHERE user_id = ? AND id = ?")
+    .bind(nowIso(), user.id, params.id).run();
+  const ref = await resendCard(env, db, user.id, app, user.settings.language);
   if (!ref) throw new HttpError(409, "no_telegram");
   return json({ ok: true });
 });

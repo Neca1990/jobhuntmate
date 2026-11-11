@@ -791,7 +791,7 @@ function drawApplications(filter = state.appsFilter || "") {
       } catch (err) { alertRow(err); }
     } }),
   ]);
-  const head = ["a.date", "a.company", "a.title", "a.source", "a.score", "a.status", "a.cv", "a.letter_col", "a.followup_col", "a.deadline", "a.notes"]
+  const head = ["a.date", "a.company", "a.title", "a.source", "a.score", "a.status", "a.telegram_col", "a.cv", "a.letter_col", "a.followup_col", "a.deadline", "a.notes"]
     .map((k) => el("th", { text: t(k) }));
   root.replaceChildren(el("div", { class: "card" }, [
     el("div", { class: "row" }, [el("h2", { text: t("tab.applications") }),
@@ -803,9 +803,9 @@ function drawApplications(filter = state.appsFilter || "") {
         el("td", { text: (a.created_at || "").slice(0, 10) }), el("td", { text: a.company || "" }),
         el("td", {}, [el("a", { href: a.url, target: "_blank", rel: "noopener noreferrer", text: a.title || "—" })]),
         el("td", { text: a.source || "" }), el("td", { text: a.score ? `${a.score}/10` : "" }),
-        el("td", {}, [statusSelect(a), telegramButton(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { class: "files" }, letterCell(a)),
+        el("td", {}, [statusSelect(a)]), el("td", { class: "files" }, [telegramButton(a)].filter(Boolean)), el("td", { class: "files" }, cvCell(a)), el("td", { class: "files" }, letterCell(a)),
         el("td", { class: "files" }, followupCell(a)), el("td", { text: a.deadline || "" }), noteCell(a),
-      ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 11 }, [
+      ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 12 }, [
         a.status === "sent" && appFollowup(a), (a.status !== "sent" || a.cv_state === "ready") && cvDetail(a)].filter(Boolean))])].filter(Boolean)))])])
       : el("p", { class: "muted", text: t(state.appsTab === "archive" ? "a.empty_archive" : "a.empty") }),
   ]));
@@ -813,12 +813,12 @@ function drawApplications(filter = state.appsFilter || "") {
 // the posting's card sent to Telegram again, e.g. after clearing the chat there (the bot can't tell it was cleared)
 function telegramButton(a) {
   if (!a.refs?.telegram || ARCHIVED.has(a.status)) return null;
-  return el("button", { class: "ghost small", text: "📲", title: t("a.resend_card"), "aria-label": t("a.resend_card"), onclick: async (e) => {
+  return el("button", { class: "ghost small", text: `📲 ${t("a.resend")}`, title: t("a.resend_card"), onclick: async (e) => {
     const b = e.currentTarget;
     b.disabled = true;
-    try { await api("POST", `/api/applications/${encodeURIComponent(a.id)}/telegram`); b.textContent = "✓"; }
-    catch (err) { alertRow(err); b.textContent = "📲"; }
-    setTimeout(() => { b.disabled = false; b.textContent = "📲"; }, 5000);
+    try { await api("POST", `/api/applications/${encodeURIComponent(a.id)}/telegram`); b.textContent = `✓ ${t("a.resent")}`; }
+    catch (err) { alertRow(err); b.textContent = `📲 ${t("a.resend")}`; }
+    setTimeout(() => { b.disabled = false; b.textContent = `📲 ${t("a.resend")}`; }, 30000);
   } });
 }
 

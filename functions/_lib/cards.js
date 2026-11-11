@@ -8,12 +8,12 @@ const LABELS = {
     offer: "🎉 Offer", rejected: "❌ Rejected", skipped: "❌ Skipped", no_reply: "🔇 No reply",
     approve: "✅ Approve", skip: "❌ Skip", gone: "This posting is no longer in your list.", done: "Already handled.",
     closed: "⚠️ Posting taken down", closed_msg: "⚠️ {what} has been taken down by the site – no point applying any more.",
-    score: "Match", posting: "Posting", company_site: "On the company's site" },
+    score: "Match", posting: "Posting", company_site: "On the company's site", moved: "↓ This card was sent again further down." },
   sr: { approved: "✅ Odobreno – čeka CV", ready: "📄 CV spreman", sent: "📨 Poslato", test: "📝 Test", interview: "🗣 Intervju",
     offer: "🎉 Ponuda", rejected: "❌ Odbijeno", skipped: "❌ Preskočeno", no_reply: "🔇 Bez odgovora",
     approve: "✅ Odobri", skip: "❌ Preskoči", gone: "Ovog oglasa više nema na tvojoj listi.", done: "Već je obrađeno.",
     closed: "⚠️ Oglas skinut", closed_msg: "⚠️ Oglas {what} je skinut sa sajta – prijava više nema smisla.",
-    score: "Poklapanje", posting: "Oglas", company_site: "Na sajtu firme" },
+    score: "Poklapanje", posting: "Oglas", company_site: "Na sajtu firme", moved: "↓ Ova kartica je poslata ponovo niže." },
 };
 
 // the buttons under a posting's message, for its status: Approve/Skip while pending, otherwise a label
@@ -72,7 +72,13 @@ export async function resendCard(env, db, userId, app, language) {
   const sent = await call(env, "sendMessage", { chat_id: ref.chat_id, text: cardHtml(app, words), parse_mode: "HTML",
     disable_web_page_preview: true, reply_markup: markup(app, words) });
   if (!sent?.ok) return null;
-  if (ref.message_id) await call(env, "deleteMessage", { chat_id: ref.chat_id, message_id: ref.message_id }).catch(() => {});
+  if (ref.message_id) {
+    // older than 48 hours it can't be deleted: it then says where the card went, without buttons
+    const del = await call(env, "deleteMessage", { chat_id: ref.chat_id, message_id: ref.message_id }).catch(() => null);
+    if (!del?.ok) {
+      await call(env, "editMessageText", { chat_id: ref.chat_id, message_id: ref.message_id, text: words.moved }).catch(() => {});
+    }
+  }
   app.refs.telegram = { ...ref, message_id: sent.result.message_id };
   await db.prepare("UPDATE applications SET data = json_set(data, '$.refs.telegram.message_id', ?) WHERE user_id = ? AND id = ?")
     .bind(sent.result.message_id, userId, app.id).run();
