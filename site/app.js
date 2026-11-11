@@ -803,13 +803,25 @@ function drawApplications(filter = state.appsFilter || "") {
         el("td", { text: (a.created_at || "").slice(0, 10) }), el("td", { text: a.company || "" }),
         el("td", {}, [el("a", { href: a.url, target: "_blank", rel: "noopener noreferrer", text: a.title || "—" })]),
         el("td", { text: a.source || "" }), el("td", { text: a.score ? `${a.score}/10` : "" }),
-        el("td", {}, [statusSelect(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { class: "files" }, letterCell(a)),
+        el("td", {}, [statusSelect(a), telegramButton(a)]), el("td", { class: "files" }, cvCell(a)), el("td", { class: "files" }, letterCell(a)),
         el("td", { class: "files" }, followupCell(a)), el("td", { text: a.deadline || "" }), noteCell(a),
       ]), state.appOpen === a.id && el("tr", { class: "detail" }, [el("td", { colspan: 11 }, [
         a.status === "sent" && appFollowup(a), (a.status !== "sent" || a.cv_state === "ready") && cvDetail(a)].filter(Boolean))])].filter(Boolean)))])])
       : el("p", { class: "muted", text: t(state.appsTab === "archive" ? "a.empty_archive" : "a.empty") }),
   ]));
 }
+// the posting's card sent to Telegram again, e.g. after clearing the chat there (the bot can't tell it was cleared)
+function telegramButton(a) {
+  if (!a.refs?.telegram || ARCHIVED.has(a.status)) return null;
+  return el("button", { class: "ghost small", text: "📲", title: t("a.resend_card"), "aria-label": t("a.resend_card"), onclick: async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    try { await api("POST", `/api/applications/${encodeURIComponent(a.id)}/telegram`); b.textContent = "✓"; }
+    catch (err) { alertRow(err); b.textContent = "📲"; }
+    setTimeout(() => { b.disabled = false; b.textContent = "📲"; }, 5000);
+  } });
+}
+
 // ---- a tailored CV (and cover letter) for one posting ----
 const NO_CV = new Set(["pending", "skipped", "rejected", "no_reply"]);
 const toggleOpen = (a) => { state.appOpen = state.appOpen === a.id ? null : a.id; drawApplications(); };

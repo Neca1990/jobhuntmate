@@ -782,3 +782,23 @@ test("a card the person deleted in Telegram comes back when its status changes, 
   await call("PATCH", "/api/applications/j1", { cookie, body: { status: "rejected" } });
   assert.deepEqual(sent.map((m) => m.url.split("/").at(-1)), ["editMessageReplyMarkup"]);
 });
+
+test("the person can have a posting's card sent to Telegram again; the old message goes when Telegram allows", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  await call("PUT", `/api/engine/users/${users[0].id}/applications`, { headers: engine, body: [
+    { id: "j1", status: "sent", title: "QA", company: "Acme", refs: { telegram: { chat_id: OWNER, message_id: 42, html: "<b>QA</b> card" } } },
+    { id: "j2", status: "sent", title: "No chat", company: "Beta", refs: {} }] });
+  sent = [];
+  assert.equal((await call("POST", "/api/applications/j1/telegram", { cookie })).status, 200);
+  const [card, del] = sent;
+  assert.ok(card.url.endsWith("/sendMessage") && card.body.text === "<b>QA</b> card");
+  assert.equal(card.body.reply_markup.inline_keyboard[0][0].text, "📨 Applied");
+  assert.ok(del.url.endsWith("/deleteMessage") && del.body.message_id === 42);
+  const app = (await (await call("GET", "/api/applications", { cookie })).json()).applications.find((a) => a.id === "j1");
+  assert.equal(app.refs.telegram.message_id, 1); // the new message
+  assert.equal((await call("POST", "/api/applications/j1/telegram", { cookie })).status, 429); // not twice in a row
+  assert.equal((await call("POST", "/api/applications/j2/telegram", { cookie })).status, 409);
+  assert.equal((await call("POST", "/api/applications/nope/telegram", { cookie })).status, 404);
+});

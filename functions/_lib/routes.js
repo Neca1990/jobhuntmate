@@ -5,7 +5,7 @@ import { onAdminCommand, onMembership } from "./admin_chat.js";
 import { routes as agencyRoutes, saveFile } from "./agencies.js";
 import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js";
 import { PRIVACY_VERSION, routes as privacyRoutes } from "./privacy.js";
-import { cardAction, postingsClosed, relabel } from "./cards.js";
+import { cardAction, postingsClosed, relabel, resendCard } from "./cards.js";
 import { TIMEZONES } from "./geo.gen.js";
 import { isDue } from "./schedule.js";
 import { deviceCookie, deviceId, endSession, requireUser } from "./session.js";
@@ -201,6 +201,20 @@ on("PATCH", "/api/applications/:id", async ({ request, env, db, params }) => {
     .bind(JSON.stringify(app), nowIso(), user.id, params.id).run();
   if (app.status !== before) await relabel(env, app, user.settings.language, db, user.id);
   return json({ application: app });
+});
+
+// the job's card sent to Telegram again (e.g. after the person cleared the chat), a few seconds apart at most
+const resentAt = new Map();
+on("POST", "/api/applications/:id/telegram", async ({ request, env, db, params }) => {
+  const user = await requireUser(request, db);
+  const row = await db.prepare("SELECT data FROM applications WHERE user_id = ? AND id = ?").bind(user.id, params.id).first();
+  if (!row) throw new HttpError(404, "not_found");
+  const key = `${user.id}:${params.id}`;
+  if (Date.now() - (resentAt.get(key) || 0) < 5000) throw new HttpError(429, "too_soon");
+  resentAt.set(key, Date.now());
+  const ref = await resendCard(env, db, user.id, parse(row.data, {}), user.settings.language);
+  if (!ref) throw new HttpError(409, "no_telegram");
+  return json({ ok: true });
 });
 
 // ---------- admin ----------

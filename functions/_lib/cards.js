@@ -62,6 +62,23 @@ export async function relabel(env, app, language, db = null, userId = "") {
     .bind(sent.result.message_id, userId, app.id).run();
   return app.refs.telegram;
 }
+// "send it to me again" from the site: a fresh copy of the card at the bottom of the chat, with its current status.
+// Telegram never tells a bot that someone cleared the chat on their side, so this is the person's call. The old
+// message is deleted if Telegram still allows it (48 hours), otherwise it stays as it is.
+export async function resendCard(env, db, userId, app, language) {
+  const ref = app.refs?.telegram;
+  if (!ref?.chat_id || !env.TELEGRAM_BOT_TOKEN) return null;
+  const words = LABELS[language] || LABELS.en;
+  const sent = await call(env, "sendMessage", { chat_id: ref.chat_id, text: cardHtml(app, words), parse_mode: "HTML",
+    disable_web_page_preview: true, reply_markup: markup(app, words) });
+  if (!sent?.ok) return null;
+  if (ref.message_id) await call(env, "deleteMessage", { chat_id: ref.chat_id, message_id: ref.message_id }).catch(() => {});
+  app.refs.telegram = { ...ref, message_id: sent.result.message_id };
+  await db.prepare("UPDATE applications SET data = json_set(data, '$.refs.telegram.message_id', ?) WHERE user_id = ? AND id = ?")
+    .bind(sent.result.message_id, userId, app.id).run();
+  return app.refs.telegram;
+}
+
 const ACTIONS = { approve: "approved", skip: "skipped" };
 
 // the search found postings gone: their messages get a label, and the person hears about the ones they approved
