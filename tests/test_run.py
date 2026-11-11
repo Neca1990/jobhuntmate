@@ -264,7 +264,7 @@ def test_a_sent_card_keeps_its_text_so_the_site_can_send_it_again(monkeypatch):
 
 
 def test_search_everything_looks_again_at_postings_left_out_for_a_condition(user, fake_site, monkeypatch):
-    """Left out for a language the person hadn't listed; once they add it, "search everything" brings it."""
+    """Left out for a language the person didn't list; once they add it, "search everything" brings it."""
     from engine import liveness
     from engine.models import Job
     tg = FakeChannel()
@@ -273,7 +273,7 @@ def test_search_everything_looks_again_at_postings_left_out_for_a_condition(user
     job = Job(source="fake", url="https://example.com/qa-en", title="Senior QA Engineer", company="Acme", location="Remote",
               regions=["Europe"], remote=True, posted_at=NOW,
               description_text="Manual and automated testing. Fluent English is required.")
-    nobody = {**user, "profile": {**(user.get("profile") or {}), "languages": []}}
+    nobody = {**user, "profile": {**(user.get("profile") or {}), "languages": [{"name": "Serbian", "level": "native"}]}}
     store = MemoryStore([nobody])
     store.pool = {job.id: job.to_dict()}
     monkeypatch.setattr(store, "load_pool", lambda: list(store.pool.values()), raising=False)
@@ -282,7 +282,24 @@ def test_search_everything_looks_again_at_postings_left_out_for_a_condition(user
     engine_run.run(store, now=NOW, only_search_all=True)
     assert store.files[("u1", "seen")][job.id]["status"].startswith("dropped:")
     assert not tg.cards
-    store._users[0] = {**nobody, "profile": {**nobody["profile"], "languages": [{"name": "English", "level": "advanced"}]}}
+    store._users[0] = {**nobody, "profile": {**nobody["profile"], "languages": [{"name": "Serbian", "level": "native"},
+                                                                          {"name": "English", "level": "advanced"}]}}
     engine_run.run(store, now=NOW, only_search_all=True)
     assert store.files[("u1", "seen")][job.id]["status"] == "sent" and len(tg.cards) == 1
     assert store.updates[-1][2]["diag"]["rechecked"] == 1
+
+
+def test_no_languages_listed_means_not_set_a_required_language_only_warns(user):
+    from engine import geo, requirements
+    from engine.models import Job
+    from engine.store import CONFIG, load_json
+    catalog = load_json(CONFIG / "languages.json", {})["languages"]
+    job = Job(source="x", url="u", title="QA Engineer", company="Acme", description_text="Fluent English is required.")
+    ok = geo.ok_places("RS")
+    drop, warn = requirements.evaluate(job, {"languages": []}, catalog, {}, ok)
+    assert not drop and [w.value for w in warn] == ["English"]
+    # once languages are listed, one that's missing drops as before (unless the person chose "warn")
+    drop, _ = requirements.evaluate(job, {"languages": [{"name": "Serbian", "level": "native"}]}, catalog, {}, ok)
+    assert [d.value for d in drop] == ["English"]
+    drop, _ = requirements.evaluate(job, {"languages": [{"name": "English", "level": "advanced"}]}, catalog, {}, ok)
+    assert not drop

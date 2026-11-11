@@ -292,7 +292,9 @@ def send_queue(run: UserRun, shared: dict, gstate: dict, cache: Shared, dry_run:
             continue
         family = next(f for f in run.taxonomy["families"] if f["id"] == item["match"]["family"])
         warnings = [requirements.Requirement(**w) for w in item.get("warnings", [])]
-        skills = cap_score(score_job(job, family, run.user.get("profile") or {}).__dict__, warnings, labels, run.lang)
+        # the score is only capped for a language the person said they don't have (none listed: nothing said)
+        listed = bool((run.user.get("profile") or {}).get("languages"))
+        skills = cap_score(score_job(job, family, run.user.get("profile") or {}).__dict__, warnings if listed else [], labels, run.lang)
         check = cache.check(job, shared["companies"], gstate, now)
         if not allowed_on_company_site(job, check, item["match"].get("location_ok"), run.taxonomy, run.hires_widely):
             run.seen.setdefault(job.id, {})["status"] = "dropped: company site excludes the user's country"

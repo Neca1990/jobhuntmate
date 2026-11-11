@@ -141,5 +141,8 @@ def key_lines(text: str, limit: int = 12) -> list:
 
 
 def evaluate(job, profile: dict, catalog: list, policy: dict, ok_places: re.Pattern) -> tuple:
-    """(drop, warnings) for a posting, looking at title and full text."""
+    """(drop, warnings) for a posting, looking at title and full text. Someone who hasn't listed any language yet
+    isn't taken to speak none: a required language then only warns ("requires English"), it never drops."""
+    if not (profile or {}).get("languages"):
+        policy = {**(policy or {}), "language": "warn"}
     return apply_policy(detect(f"{job.title}\n{job.description_text}", profile, catalog, ok_places), policy)
