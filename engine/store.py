@@ -12,6 +12,7 @@ FileStore layout:
 from __future__ import annotations
 
 import json
+import urllib.parse
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -179,7 +180,7 @@ class ApiStore:
     def load_pool(self) -> list:
         out, after = [], ""
         while True:
-            page = self._get(f"pool?limit=500&after={after}")
+            page = self._get(f"pool?limit=200&after={urllib.parse.quote(after)}")
             out += page["postings"]
             after = page.get("next")
             if not after:

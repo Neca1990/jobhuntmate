@@ -101,11 +101,15 @@ export function routes(on, { requireUser, requireEngine, requireAdmin }) {
     requireEngine(request, env);
     const url = new URL(request.url);
     const after = url.searchParams.get("after") || "";
-    const limit = Math.min(Number(url.searchParams.get("limit")) || 500, 1000);
+    const limit = Math.min(Number(url.searchParams.get("limit")) || 200, 300);
     const since = new Date(Date.now() - (await settings(db)).pool_days * 86400000).toISOString();
     const rows = (await db.prepare("SELECT id, data FROM pool WHERE id > ? AND first_seen >= ? ORDER BY id LIMIT ?")
       .bind(after, since, limit).all()).results;
-    return json({ postings: rows.map((r) => parse(r.data, null)).filter(Boolean), next: rows.length === limit ? rows.at(-1).id : "" });
+    // the rows are already JSON (written by PUT below): passed through as they are, since parsing and writing
+    // hundreds of postings again ran past the Worker's CPU limit (error 1102) once the archive grew
+    const next = rows.length === limit ? rows.at(-1).id : "";
+    return new Response(`{"postings":[${rows.map((r) => r.data).join(",")}],"next":${JSON.stringify(next)}}`,
+      { headers: { "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff" } });
   });
 
   // after each search: drop what's older than the period, measure, and apply the safety
