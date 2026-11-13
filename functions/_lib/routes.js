@@ -5,7 +5,7 @@ import { onAdminCommand, onMembership } from "./admin_chat.js";
 import { routes as agencyRoutes, saveFile } from "./agencies.js";
 import { POOL_SETTINGS, routes as poolRoutes, searchAllWaiting } from "./pool.js";
 import { PRIVACY_VERSION, routes as privacyRoutes } from "./privacy.js";
-import { cardAction, postingsClosed, relabel, resendCard } from "./cards.js";
+import { cardAction, cardReply, postingsClosed, relabel, resendCard } from "./cards.js";
 import { TIMEZONES } from "./geo.gen.js";
 import { isDue } from "./schedule.js";
 import { deviceCookie, deviceId, endSession, requireUser } from "./session.js";
@@ -132,6 +132,8 @@ on("POST", "/api/telegram", async ({ request, env, db }) => {
     await PROVIDERS.telegram.onStart(env, db, msg, start[1], auth.reach);
   } else if (msg?.text && msg.chat?.type === "private" && !msg.reply_to_message) {
     await PROVIDERS.telegram.onText(env, db, msg, auth.reach);
+  } else if (msg?.text && msg.chat?.type === "private" && msg.reply_to_message && !msg.text.startsWith("/")) {
+    await cardReply(env, db, msg);
   }
   const query = update.callback_query;
   if (query?.data?.startsWith("l:")) await PROVIDERS.telegram.onButton(env, db, query, auth.approve);

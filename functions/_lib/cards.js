@@ -8,12 +8,16 @@ const LABELS = {
     offer: "🎉 Offer", rejected: "❌ Rejected", skipped: "❌ Skipped", no_reply: "🔇 No reply",
     approve: "✅ Approve", skip: "❌ Skip", gone: "This posting is no longer in your list.", done: "Already handled.",
     closed: "⚠️ Posting taken down", closed_msg: "⚠️ {what} has been taken down by the site – no point applying any more.",
-    score: "Match", posting: "Posting", company_site: "On the company's site", moved: "↓ This card was sent again further down." },
+    score: "Match", posting: "Posting", company_site: "On the company's site", moved: "↓ This card was sent again further down.",
+    noted: "📝 Saved as a note on {what} – you'll see it on the site, under Applications.",
+    not_a_card: "📝 Replies are saved as notes only on a posting's card. Reply to the card of the posting you mean." },
   sr: { approved: "✅ Odobreno – čeka CV", ready: "📄 CV spreman", sent: "📨 Poslato", test: "📝 Test", interview: "🗣 Intervju",
     offer: "🎉 Ponuda", rejected: "❌ Odbijeno", skipped: "❌ Preskočeno", no_reply: "🔇 Bez odgovora",
     approve: "✅ Odobri", skip: "❌ Preskoči", gone: "Ovog oglasa više nema na tvojoj listi.", done: "Već je obrađeno.",
     closed: "⚠️ Oglas skinut", closed_msg: "⚠️ Oglas {what} je skinut sa sajta – prijava više nema smisla.",
-    score: "Poklapanje", posting: "Oglas", company_site: "Na sajtu firme", moved: "↓ Ova kartica je poslata ponovo niže." },
+    score: "Poklapanje", posting: "Oglas", company_site: "Na sajtu firme", moved: "↓ Ova kartica je poslata ponovo niže.",
+    noted: "📝 Zapisano kao beleška na prijavi {what} – vidiš je na sajtu, u Prijavama.",
+    not_a_card: "📝 Kao beleška se čuva samo odgovor na karticu oglasa. Odgovori na karticu oglasa na koji misliš." },
 };
 
 // the buttons under a posting's message, for its status: Approve/Skip while pending, otherwise a label
@@ -124,4 +128,24 @@ export async function cardAction(env, db, query) {
     await call(env, "editMessageReplyMarkup", { chat_id: query.message.chat.id, message_id: query.message.message_id,
       reply_markup: markup(app, words) });
   }
+}
+
+// a reply to a job's card in the chat (a question, "they called me", ...): kept as a note on that application,
+// where the person and whoever makes their CV will see it; the bot says where it went
+export async function cardReply(env, db, msg) {
+  const user = await db.prepare("SELECT u.id, u.settings FROM identities i JOIN users u ON u.id = i.user_id " +
+    "WHERE i.provider = 'telegram' AND i.subject = ? AND u.active = 1").bind(String(msg.from?.id)).first();
+  if (!user) return;
+  const words = LABELS[parse(user.settings, {}).language] || LABELS.en;
+  const row = await db.prepare("SELECT id, data FROM applications WHERE user_id = ? AND " +
+    "json_extract(data, '$.refs.telegram.message_id') = ? AND json_extract(data, '$.refs.telegram.chat_id') = ?")
+    .bind(user.id, msg.reply_to_message.message_id, msg.chat.id).first();
+  const answer = (text) => call(env, "sendMessage", { chat_id: msg.chat.id, text,
+    reply_parameters: { message_id: msg.message_id, allow_sending_without_reply: true } }).catch(() => {});
+  if (!row) return answer(words.not_a_card);
+  const app = parse(row.data, {});
+  app.notes = [...(app.notes || []), { at: nowIso(), text: String(msg.text).trim().slice(0, 2000), via: "telegram" }];
+  await db.prepare("UPDATE applications SET data = ?, updated_at = ? WHERE user_id = ? AND id = ?")
+    .bind(JSON.stringify(app), nowIso(), user.id, row.id).run();
+  return answer(words.noted.replace("{what}", `„${app.title} – ${app.company}”`));
 }

@@ -814,3 +814,27 @@ test("the person can have a posting's card sent to Telegram again; the old messa
   assert.equal((await call("POST", "/api/applications/j2/telegram", { cookie })).status, 409);
   assert.equal((await call("POST", "/api/applications/nope/telegram", { cookie })).status, 404);
 });
+
+test("a reply to a job's card in Telegram is saved as a note on that application, and the bot says so", async () => {
+  const { cookie } = await signIn(OWNER);
+  const engine = { authorization: "Bearer engine-key" };
+  const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
+  await call("PUT", `/api/engine/users/${users[0].id}/applications`, { headers: engine, body: [
+    { id: "j1", status: "approved", title: "QA", company: "Acme", refs: { telegram: { chat_id: OWNER, message_id: 42 } } }] });
+  const reply = (to, text) => call("POST", "/api/telegram", { headers: { "x-telegram-bot-api-secret-token": SECRET },
+    body: { message: { message_id: 77, from: { id: OWNER }, chat: { id: OWNER, type: "private" }, text, reply_to_message: { message_id: to } } } });
+  sent = [];
+  await reply(42, "Do they need a cover letter?");
+  const app = (await (await call("GET", "/api/applications", { cookie })).json()).applications[0];
+  assert.deepEqual(app.notes.map((n) => [n.text, n.via]), [["Do they need a cover letter?", "telegram"]]);
+  assert.match(sent.at(-1).body.text, /Saved as a note on „QA – Acme”/);
+  assert.equal(sent.at(-1).body.reply_parameters.message_id, 77);
+  sent = [];
+  await reply(999, "hello?"); // not a card: nothing saved, the bot explains
+  assert.match(sent.at(-1).body.text, /only on a posting's card/);
+  assert.equal((await (await call("GET", "/api/applications", { cookie })).json()).applications[0].notes.length, 1);
+  // someone else replying to that message id saves nothing on the owner's application
+  await call("POST", "/api/telegram", { headers: { "x-telegram-bot-api-secret-token": SECRET },
+    body: { message: { message_id: 78, from: { id: 5555 }, chat: { id: 5555, type: "private" }, text: "mine?", reply_to_message: { message_id: 42 } } } });
+  assert.equal((await (await call("GET", "/api/applications", { cookie })).json()).applications[0].notes.length, 1);
+});
