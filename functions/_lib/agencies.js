@@ -1,9 +1,9 @@
 // Files on the account (CVs), recruitment agencies (a shared catalog plus each user's dealings with them) and
 // requests for a tailored CV and email, which the owner (or later the Claude API) fulfils.
 import brand from "./brand.gen.js";
-import { relabel } from "./cards.js";
+import { relabel, resendCard } from "./cards.js";
 import { notifyAdmin } from "./admin_chat.js";
-import { call } from "./telegram_api.js";
+import { call, sendDocument } from "./telegram_api.js";
 import { HttpError, json, nowIso, parse, readBody } from "./util.js";
 
 const MAX_FILE = 1_500_000; // bytes; the database keeps up to ~2 MB in one row
@@ -52,25 +52,43 @@ export async function saveMine(db, userId, agencyId, data) {
 }
 
 // the bot tells the person their CV is ready, and a job card on Telegram shows it too
+// the person hears on Telegram that their CV (and letter, email) is ready. For a job: the whole posting card again
+// at the bottom of the chat, with its new status, and the CV and cover letter right under it as PDFs, so all of it
+// can be looked at there too. For an agency or a follow-up: a short note with a link to the site.
 async function tellUser(env, db, req, data) {
   if (!env.TELEGRAM_BOT_TOKEN) return;
   const settings = parse((await db.prepare("SELECT settings FROM users WHERE id = ?").bind(req.user_id).first())?.settings, {});
   const chat = settings.channels?.telegram?.chat_id;
   const sr = settings.language === "sr";
-  // a job's card first (sent again if it was deleted), so the note below can answer it and show which posting it is
-  const card = req.kind.startsWith("job") ? await relabel(env, data, settings.language, db, req.user_id) : null;
+  const esc = (v) => String(v).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]);
   if (req.kind === "agency_followup" && !data.name) {
     data.name = parse((await db.prepare("SELECT data FROM agencies WHERE id = ?").bind(req.target).first())?.data, {}).name || "";
   }
-  if (!chat) return;
   const what = req.kind.startsWith("job") ? `${data.title || ""} – ${data.company || ""}` : data.name || req.target;
+  if (req.kind === "job_cv") {
+    const card = await resendCard(env, db, req.user_id, data, settings.language).catch(() => null);
+    const to = card?.chat_id || chat;
+    if (!to) return;
+    const files = [[data.cv_file_id, sr ? `📄 CV – ${what}` : `📄 CV – ${what}`],
+      [data.letter_file_id, sr ? `✉️ Propratno pismo – ${what}` : `✉️ Cover letter – ${what}`]].filter(([id]) => id);
+    for (const [id, caption] of files) {
+      const row = await db.prepare("SELECT name, mime, data FROM files WHERE id = ? AND user_id = ?").bind(id, req.user_id).first();
+      if (!row) continue;
+      const bytes = row.data instanceof ArrayBuffer ? new Uint8Array(row.data) : Uint8Array.from(row.data);
+      await sendDocument(env, to, bytes, row.name, caption.slice(0, 1000), row.mime).catch(() => {});
+    }
+    if (!card) {  // no card to send again (e.g. a posting added on the site): a line says which posting the files are for
+      await call(env, "sendMessage", { chat_id: to, text: esc((sr ? "📄 Spremno za " : "📄 Ready for ") + what) + `\n${brand.site_url}`,
+        parse_mode: "HTML", disable_web_page_preview: true }).catch(() => {});
+    }
+    return;
+  }
+  if (req.kind === "job_followup") await relabel(env, data, settings.language, db, req.user_id);
+  if (!chat) return;
   const text = (req.kind.endsWith("_followup") ? (sr ? `✍️ Spreman je follow-up mejl za ${what}.` : `✍️ Your follow-up email for ${what} is ready.`)
     : sr ? `📄 Spremno: CV${data.letter_file_id ? " i propratno pismo" : ""}${data.mail ? " i mejl" : ""} za ${what}.`
     : `📄 Ready: your CV${data.letter_file_id ? " and cover letter" : ""}${data.mail ? " and email" : ""} for ${what}.`) + `\n${brand.site_url}`;
-  await call(env, "sendMessage", { chat_id: chat, text: text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]),
-    parse_mode: "HTML", disable_web_page_preview: true,
-    ...(card && String(card.chat_id) === String(chat) ? { reply_parameters: { message_id: card.message_id, allow_sending_without_reply: true } } : {}),
-  }).catch(() => {});
+  await call(env, "sendMessage", { chat_id: chat, text: esc(text), parse_mode: "HTML", disable_web_page_preview: true }).catch(() => {});
 }
 
 async function isOwnerUser(env, db, userId) {

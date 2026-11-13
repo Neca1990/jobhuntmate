@@ -8,13 +8,17 @@ import { testDb } from "./d1.mjs";
 const OWNER = 1001;
 const SECRET = "webhook-secret";
 let env, sent;
+// a Telegram call's body: JSON, or a form for a file (sendDocument)
+const bodyOf = (init) => (init.body instanceof FormData
+  ? Object.fromEntries([...init.body.entries()].map(([k, v]) => [k, typeof v === "string" ? v : { file: v.name, size: v.size }]))
+  : JSON.parse(init.body));
 
 beforeEach(() => {
   env = { DB: testDb(), TELEGRAM_BOT_TOKEN: "t", TELEGRAM_WEBHOOK_SECRET: SECRET, OWNER_TELEGRAM_ID: String(OWNER), ENGINE_KEY: "engine-key" };
   sent = [];
   // the bot's messages are captured instead of sent
   globalThis.fetch = async (url, init) => {
-    sent.push({ url, body: JSON.parse(init.body) });
+    sent.push({ url, body: bodyOf(init) });
     return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }));
   };
 });
@@ -373,8 +377,14 @@ test("a tailored CV and cover letter for a job posting: request, owner's side, r
   assert.equal(app.cv_state, "ready");
   assert.equal(app.status, "ready");
   assert.ok(app.cv_file_id && app.letter_file_id);
-  assert.equal(sent.find((m) => m.url.endsWith("/editMessageReplyMarkup")).body.reply_markup.inline_keyboard[0][0].text, "📄 CV ready");
-  assert.match(sent.find((m) => m.url.endsWith("/sendMessage")).body.text, /Ready: your CV and cover letter for QA Engineer – Acme/);
+  // Telegram: the whole card again at the bottom with its new status, the old one deleted, then the CV and the letter
+  assert.deepEqual(sent.map((m) => m.url.split("/").at(-1)), ["sendMessage", "deleteMessage", "sendDocument", "sendDocument"]);
+  assert.equal(sent[0].body.reply_markup.inline_keyboard[0][0].text, "📄 CV ready");
+  assert.match(sent[0].body.text, /QA Engineer<\/b> – Acme/);
+  assert.equal(sent[1].body.message_id, 77);
+  assert.deepEqual([sent[2].body.document.file, sent[2].body.caption], ["cv.pdf", "📄 CV – QA Engineer – Acme"]);
+  assert.deepEqual([sent[3].body.document.file, sent[3].body.caption], ["letter.pdf", "✉️ Cover letter – QA Engineer – Acme"]);
+  assert.equal(String(sent[2].body.chat_id), String(OWNER));
   // asking for changes keeps the first version in the history
   await call("POST", "/api/requests", { cookie, body: { kind: "job_cv", target: "job1", change: "shorter summary" } });
   const again = (await (await call("GET", "/api/engine/requests", { headers: engine })).json()).requests[0];
@@ -600,7 +610,7 @@ test("a username changed in Telegram follows on the account: from any tap or mes
   assert.equal(await label(), "@renamed");
   // the person removed their username: Telegram's answer has only the name
   globalThis.fetch = async (url, init) => {
-    sent.push({ url, body: JSON.parse(init.body) });
+    sent.push({ url, body: bodyOf(init) });
     const result = url.endsWith("/getChat") ? { id: OWNER, first_name: "Ana", last_name: "Anić", type: "private" } : { message_id: 1 };
     return new Response(JSON.stringify({ ok: true, result }));
   };
@@ -728,7 +738,7 @@ test("security: settings the forms can't produce are refused", async () => {
   assert.equal((await call("GET", "/api/files/%E0", { cookie })).status, 400); // a broken path is answered, not a crash page
 });
 
-test("a card the person deleted in Telegram comes back when its status changes, and the CV note answers it", async () => {
+test("a card the person deleted in Telegram comes back when its status changes, and with its CV", async () => {
   const { cookie } = await signIn(OWNER);
   const engine = { authorization: "Bearer engine-key" };
   const { users } = await (await call("GET", "/api/engine/users", { headers: engine })).json();
@@ -741,7 +751,7 @@ test("a card the person deleted in Telegram comes back when its status changes, 
   const deleted = new Set([42, 43]);
   let next = 500;
   globalThis.fetch = async (url, init) => {
-    const body = JSON.parse(init.body);
+    const body = bodyOf(init);
     sent.push({ url, body });
     if (url.endsWith("/editMessageReplyMarkup") && deleted.has(body.message_id)) {
       return new Response(JSON.stringify({ ok: false, error_code: 400, description: "Bad Request: message to edit not found" }));
@@ -760,21 +770,19 @@ test("a card the person deleted in Telegram comes back when its status changes, 
   assert.deepEqual(sent.map((m) => m.url.split("/").at(-1)), ["editMessageReplyMarkup"]);
   assert.equal(sent[0].body.message_id, 500);
 
-  // a CV made for a posting whose card is gone: the card comes back (a short one when the old text wasn't kept),
-  // then the note answers it, so it's clear which posting it is about
+  // a CV made for a posting whose card is gone: the card comes back (a short one when the old text wasn't kept)
+  // with the CV under it
   await call("POST", "/api/requests", { cookie, body: { kind: "job_cv", target: "j2" } });
   const { requests } = await (await call("GET", "/api/engine/requests", { headers: engine })).json();
   sent = [];
   await call("PUT", `/api/engine/requests/${requests[0].id}`, { headers: engine, body: {
     file: { name: "cv.pdf", data: Buffer.from("%PDF cv").toString("base64") } } });
-  const [again, note] = sent.filter((m) => m.url.endsWith("/sendMessage"));
+  const again = sent.find((m) => m.url.endsWith("/sendMessage"));
   assert.match(again.body.text, /<b>Tester<\/b> – Beta \(Board\)/);
   assert.match(again.body.text, /href="https:\/\/jobs.test\/2"/);
   assert.match(again.body.text, /href="https:\/\/beta.test\/careers"/);
   assert.equal(again.body.reply_markup.inline_keyboard[0][0].text, "📄 CV ready");
-  assert.match(note.body.text, /Ready: your CV for Tester – Beta/);
-  assert.equal(note.body.reply_parameters.message_id, (await (await call("GET", "/api/applications", { cookie })).json())
-    .applications.find((a) => a.id === "j2").refs.telegram.message_id);
+  assert.equal(sent.at(-1).body.caption, "📄 CV – Tester – Beta");
 
   // a posting moved to the archive isn't brought back
   deleted.add(500);
@@ -802,7 +810,7 @@ test("the person can have a posting's card sent to Telegram again; the old messa
   // half a minute later it may go again; an old message Telegram won't delete any more says where the card went
   await env.DB.prepare("UPDATE applications SET data = json_set(data, '$.card_resent_at', '2026-01-01T00:00:00Z') WHERE id = 'j1'").run();
   globalThis.fetch = async (url, init) => {
-    sent.push({ url, body: JSON.parse(init.body) });
+    sent.push({ url, body: bodyOf(init) });
     const ok = !url.endsWith("/deleteMessage");
     return new Response(JSON.stringify(ok ? { ok, result: { message_id: 9 } } : { ok, description: "Bad Request: message can't be deleted" }));
   };
